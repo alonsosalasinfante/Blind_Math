@@ -1,0 +1,7 @@
+User Interaction: Arrow keys will guide navigation through the mathematical equation/formula the user wants to comprehend.
+	Up/Down arrows: Used to ascend/descend hierarchies of math terms.
+	Left/Right arrows: Used to navigate through the various terms within the same hierarchy
+
+Questions:
+	Will my program be analyzing .tex files or pdf documents? 
+	Should I build a web-based app? 
