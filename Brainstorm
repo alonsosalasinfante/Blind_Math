@@ -5,3 +5,19 @@ User Interaction: Arrow keys will guide navigation through the mathematical equa
 Questions:
 	Will my program be analyzing .tex files or pdf documents? 
 	Should I build a web-based app? 
+
+Design:
+	a) Initial working prototype: be able to read:
+		1) Addition
+		2) Subtraction
+		3) Multiplication
+		4) Division
+		6) Parenthesis
+		7) English variables
+	b) 2nd working prototype: be able to read:
+		1) All of the above, in any LaTeX specific forms
+		2) All possible variables (Hebrew/Greek letters)
+		3) Trig/Calculus/etc. symbols
+		4) Exponentials
+
+
