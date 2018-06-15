@@ -42,8 +42,10 @@ def parse(token, index):
 				expression += [inner_expression]
 				inner_expression, index = parse(token, index)
 			return expression, index
-		elif token[index] == ')' or token[index] == '=':
+		elif token[index] == ')':
 			return None, index + 1
+		elif token[index] == '=':
+			return '=', index + 1
 		else:
 			return token[index], index + 1
 
@@ -54,14 +56,14 @@ def term(expression):
 		if i not in checked:
 			if type(expression[i]) != list:
 				new_term = expression[i]
-				if i not in checked and (expression[i].lower() in symbols.numbers + symbols.letters or expression[i] == '/'):
-						checked.add(i) 
-						for j in range(i + 1, len(expression)):
-							if type(expression[j]) != list and (expression[j].lower() in symbols.numbers + symbols.letters or expression[j] == '/'):
-								checked.add(j)
-								new_term += expression[j]
-							else:
-								break
+				if expression[i].lower() in symbols.numbers + symbols.letters:
+					checked.add(i) 
+					for j in range(i + 1, len(expression)):
+						if type(expression[j]) != list and expression[j].lower() in symbols.numbers + symbols.letters:
+							checked.add(j)
+							new_term += expression[j]
+						else:
+							break
 			else:
 				new_term = term(expression[i])
 			new_expression += [new_term]
@@ -84,13 +86,17 @@ def order(tokens):
 	for expression in expressions:
 		new_expression = []
 		for e in expression:
-			new_expression += [term(e)]
+			if type(e) == list:
+				new_expression += [term(e)]
+			else:
+				new_expression += e
 		new_expressions += [new_expression]
 
 	return new_expressions
 
 def process_input(expressions, location, inp):
 	expression = expressions
+
 	for i in location[:-1]:
 		expression = expression[i]
 	if inp == "UP":
@@ -105,37 +111,53 @@ def process_input(expressions, location, inp):
 	elif inp == "RIGHT":
 		if type(expression) == list and len(location) > 0 and location[-1] < len(expression) - 1:
 			location[-1] = location[-1] + 1
+	
 	expression = expressions
+
 	for i in location:
 		expression = expression[i]
-	print(expression.__repr__())
 	return expression
 
 def to_speech(expression, location):
 	statement = ''
-	print("$$$$$$$$$$$", expression)
 	if len(location) == 0:
-		statement = "A list of " + str(len(expression)) + " equations"
+		statement = "A list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
 	elif len(location) == 1:
 		if len(expression) == 1:
-			statement = "An expression with " + str(len(expression[0])) + " terms"
+			statement = "An expression with " + str(len(expression[0])) + " term" + ('s' if len(expression[0]) > 1 else '')
 		else:
-			statement = "An equation with " + str(len(expression)) + " expressions"
+			statement = ''
+			e_indeces = []
+			j = 1
+			for i in range(len(expression)):
+				if type(expression[i]) == list:
+					e_indeces += [j]
+					j += 1
+			j = 0
+			for i in range(len(expression)):
+				if type(expression[i]) == list:
+					statement += 'expression ' + str(e_indeces[j]) + ' '
+					j += 1
+				elif expression[i] == '=':
+					statement += 'equals '
 	else:
 		if type(expression) == list:
-			statement = "An expression with " + str(len(expression)) + " terms"
+			# j = 1
+			# for i in range(len(expression)):
+			# 	if type(expression[i]) == list:
+			# 		e_indeces += [j]
+			# 		j += 1
+			# j = 0
+			# statement = ("Expression " if len(location) == 2 else "Term ") + str(location[-1] + 1)
+			statement = "Term with " + str(len(expression)) + " term" + ('s ' if len(expression) > 1 else ' ') + "inside"
 		else:
 			if type(expression) == str:
-				if expression[-1] == '/' and len(expression) > 1:
-					statement = expression[:-1] + " divided by a term"
-				elif expression[0] == '/' and len(expression) > 1:
-					statement = "divided by " + expression[1:]
-				elif expression == '/':
-					statement = "divided by"
+				if expression == '/':
+					statement = "divided by "
 				elif expression == '+':
-					statement = "plus"
+					statement = "plus "
 				elif expression == '-':
-					statement = "minus"
+					statement = "minus "
 				else:
 					statement = expression
 	if len(statement) == 0:
@@ -171,6 +193,7 @@ while True:
 	if len(statement) != 0 and i < len(statement):
 		os.system("say " + statement[i])		
 		i += 1
+
 
 
 
