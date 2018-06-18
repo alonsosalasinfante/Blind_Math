@@ -1,8 +1,4 @@
-import symbols, curses, os
-File = open('test_latex.tex', 'r').read()
-stdscr = curses.initscr()
-stdscr.keypad(True)
-stdscr.nodelay(True)
+import symbols, os, multiprocessing, pyttsx3
 
 def tokenize(text):
 	'''
@@ -165,34 +161,54 @@ def to_speech(expression, location):
 	print(statement)
 	return statement
 
-parsed = tokenize(File)
-ordered = order(parsed)
-print(ordered)
-expression = ordered
-location = []
-statement = []
-i = 0
+def poller(queue):
+	import curses
+	stdscr = curses.initscr()
+	stdscr.keypad(True)
+	stdscr.nodelay(True)
+	while True:
+		inp = ''
+		char = stdscr.getch()
+		if char == curses.KEY_LEFT:
+			inp = "LEFT"
+		elif char == curses.KEY_RIGHT:
+			inp = "RIGHT"
+		elif char == curses.KEY_UP:
+			inp = "UP"
+		elif char == curses.KEY_DOWN:
+			inp = "DOWN"
 
-while True:
-	inp = ''
-	char = stdscr.getch()
-	if char == curses.KEY_LEFT:
-		inp = "LEFT"
-	elif char == curses.KEY_RIGHT:
-		inp = "RIGHT"
-	elif char == curses.KEY_UP:
-		inp = "UP"
-	elif char == curses.KEY_DOWN:
-		inp = "DOWN"
+		if len(inp) > 0:
+			e = process_input(expression, location, inp)
+			statement = to_speech(e, location)
+			queue.put(statement)
 
-	if len(inp) > 0:
-		e = process_input(expression, location, inp)
-		statement = to_speech(e, location).split(' ')
-		i = 0
 
-	if len(statement) != 0 and i < len(statement):
-		os.system("say " + statement[i])		
-		i += 1
+def speaker(statement): 
+	engine = pyttsx3.init()
+	engine.say(statement)
+	engine.runAndWait()
+
+if __name__ == '__main__':
+	File = open('test_latex.tex', 'r').read()
+	queue = multiprocessing.Queue()
+	statement = ''
+	keyboard_process = multiprocessing.Process(target = poller, args = (queue,))
+	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	parsed = tokenize(File)
+	ordered = order(parsed)
+	expression = ordered
+	location = []
+	statement = []
+	keyboard_process.start()
+
+	while True:
+		if not queue.empty():
+			statement = queue.get()
+			if speaker_process.is_alive():
+				speaker_process.terminate()
+			speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+			speaker_process.start()
 
 
 
