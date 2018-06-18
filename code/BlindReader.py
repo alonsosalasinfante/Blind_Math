@@ -117,35 +117,36 @@ def process_input(expressions, location, inp):
 def to_speech(expression, location):
 	statement = ''
 	if len(location) == 0:
-		statement = "A list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
+		statement = "This is a list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
 	elif len(location) == 1:
 		if len(expression) == 1:
-			statement = "An expression with " + str(len(expression[0])) + " term" + ('s' if len(expression[0]) > 1 else '')
+			statement = "This is an expression with " + str(len(expression[0])) + " term" + ('s' if len(expression[0]) > 1 else '')
 		else:
-			statement = ''
-			e_indeces = []
+			statement = 'This is an equation. '
 			j = 1
 			for i in range(len(expression)):
 				if type(expression[i]) == list:
-					e_indeces += [j]
-					j += 1
-			j = 0
-			for i in range(len(expression)):
-				if type(expression[i]) == list:
-					statement += 'expression ' + str(e_indeces[j]) + ' '
+					statement += 'expression ' + str(j) + ' '
 					j += 1
 				elif expression[i] == '=':
 					statement += 'equals '
 	else:
 		if type(expression) == list:
-			# j = 1
-			# for i in range(len(expression)):
-			# 	if type(expression[i]) == list:
-			# 		e_indeces += [j]
-			# 		j += 1
-			# j = 0
-			# statement = ("Expression " if len(location) == 2 else "Term ") + str(location[-1] + 1)
-			statement = "Term with " + str(len(expression)) + " term" + ('s ' if len(expression) > 1 else ' ') + "inside"
+			if len(location) > 2:
+				statement = "Parenthetical term. "
+			for i in range(len(expression)):
+				if type(expression[i]) == list:
+					statement += "a term "
+				elif expression[i] == '/':
+					statement += "divided by "
+				elif expression[i] == '+':
+					statement += "plus "
+				elif expression[i] == '-':
+					statement += "minus "
+				else:
+					statement += expression[i] + '. '
+				if i < len(expression) - 1 and (type(expression[i]) == list or expression[i] in symbols.numbers + symbols.letters) and (type(expression[i+1]) == list or expression[i+1] in symbols.numbers + symbols.letters):
+					statement += "times "
 		else:
 			if type(expression) == str:
 				if expression == '/':
@@ -155,7 +156,7 @@ def to_speech(expression, location):
 				elif expression == '-':
 					statement = "minus "
 				else:
-					statement = expression
+					statement = expression + ". "
 	if len(statement) == 0:
 		statement = "ERROR"
 	print(statement)
@@ -195,11 +196,11 @@ if __name__ == '__main__':
 	statement = ''
 	keyboard_process = multiprocessing.Process(target = poller, args = (queue,))
 	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	location = []
+	statement = []
 	parsed = tokenize(File)
 	ordered = order(parsed)
 	expression = ordered
-	location = []
-	statement = []
 	keyboard_process.start()
 
 	while True:
