@@ -1,5 +1,19 @@
 import symbols, os, multiprocessing, pyttsx3
 
+class term():
+	def __innit__(self, op = None, targets, shift = None):
+		self.operation = op
+		self.left, self.right, self.up, self.down = targets 
+		self.shift = shift
+		if not op:
+			self.base = True
+		else:
+			self.base = False
+
+class equation():
+	def __innit__(self, expressions):
+		self.expressions = expressions
+
 def tokenize(text):
 	'''
 	Tokenizer function to isolate individual expressions and delete white space
@@ -8,10 +22,13 @@ def tokenize(text):
 	tokens = []
 
 	while i < len(text):
-		if text[i] == '$':
+		if text[i] == '$' or text[i:i+2] == '\\[':
+			if text[i] == '$':
+				i += 1
+			elif text[i:i+2] == '\\[':
+				i += 2
 			new_expression = ['(']
-			i += 1
-			while text[i] != '$':
+			while text[i] != '$' and text[i:i+2] != '\\]':
 				if text[i] == '=':
 					new_expression += [')'] + [text[i]] + ['(']
 				elif text[i] not in '\n ':
@@ -45,7 +62,7 @@ def parse(token, index):
 		else:
 			return token[index], index + 1
 
-def term(expression):
+def group(expression):
 	new_expression = []
 	checked = set()
 	for i in range(len(expression)):
@@ -61,7 +78,7 @@ def term(expression):
 						else:
 							break
 			else:
-				new_term = term(expression[i])
+				new_term = group(expression[i])
 			new_expression += [new_term]
 	return new_expression
 
@@ -83,7 +100,7 @@ def order(tokens):
 		new_expression = []
 		for e in expression:
 			if type(e) == list:
-				new_expression += [term(e)]
+				new_expression += [group(e)]
 			else:
 				new_expression += e
 		new_expressions += [new_expression]
@@ -114,7 +131,7 @@ def process_input(expressions, location, inp):
 		expression = expression[i]
 	return expression
 
-def to_speech(expression, location):
+def interpreter(expression, location):
 	statement = ''
 	if len(location) == 0:
 		statement = "This is a list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
@@ -181,9 +198,8 @@ def poller(queue):
 
 		if len(inp) > 0:
 			e = process_input(expression, location, inp)
-			statement = to_speech(e, location)
+			statement = interpreter(e, location)
 			queue.put(statement)
-
 
 def speaker(statement): 
 	engine = pyttsx3.init()
@@ -200,6 +216,7 @@ if __name__ == '__main__':
 	statement = []
 	parsed = tokenize(File)
 	ordered = order(parsed)
+	print(ordered)
 	expression = ordered
 	keyboard_process.start()
 
