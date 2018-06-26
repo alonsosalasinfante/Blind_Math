@@ -16,8 +16,13 @@ Design:
 		7) English variables
 	b) 2nd working prototype: be able to read:
 		1) All of the above, in any LaTeX specific forms
-		2) All possible variables (Hebrew/Greek lAetters)
+		2) All possible variables (Hebrew/Greek letters)
 		3) Trig/Calculus/etc. symbols
 		4) Exponentials
 
-AE
+Ideas: Term class: Each term will be categorized as:
+	1) Term (e.g. 12ab, a, 53)
+	2) Parenthetical (e.g. (1+2), (231/ab), etc.)
+	3) Operation (e.g. cos(12a), sum(a+2), int(ab), +, -, /, \frac{}{}, etc.)
+
+Each term object will have a: left/right, up, down (go inside term if possible)

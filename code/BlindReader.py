@@ -1,19 +1,5 @@
 import symbols, os, multiprocessing, pyttsx3
 
-class term():
-	def __innit__(self, op = None, targets, shift = None):
-		self.operation = op
-		self.left, self.right, self.up, self.down = targets 
-		self.shift = shift
-		if not op:
-			self.base = True
-		else:
-			self.base = False
-
-class equation():
-	def __innit__(self, expressions):
-		self.expressions = expressions
-
 def tokenize(text):
 	'''
 	Tokenizer function to isolate individual expressions and delete white space
@@ -31,6 +17,18 @@ def tokenize(text):
 			while text[i] != '$' and text[i:i+2] != '\\]':
 				if text[i] == '=':
 					new_expression += [')'] + [text[i]] + ['(']
+				elif text[i] == '{':
+					new_expression += '('
+				elif text[i] == '}':
+					new_expression += ')'
+				elif text[i] == '\\':
+					for key in symbols.all_tex_keys:
+						if text[i:i+len(key)] == key:
+							new_expression += [symbols.all_tex_keys[key]]
+							i += len(key) - 1 
+							break
+				elif text[i] == '^':
+					new_expression += [symbols.all_tex_keys[text[i]]]
 				elif text[i] not in '\n ':
 					term = [text[i]]
 					if term[0] in symbols.numbers:
@@ -53,6 +51,8 @@ def parse(token, index):
 			inner_expression, index = parse(token, index + 1)
 			while inner_expression is not None:
 				expression += [inner_expression]
+				if inner_expression == 'pow':
+					expression[-2], expression[-1] = expression[-1], expression[-2]
 				inner_expression, index = parse(token, index)
 			return expression, index
 		elif token[index] == ')':
@@ -82,6 +82,47 @@ def group(expression):
 			new_expression += [new_term]
 	return new_expression
 
+def terminize(expressions, location, arg = False):
+	try:
+		expression = expressions[0]
+		i = 1
+		while i < len(location) - 1:
+			expression = expression[location[i]]
+			i += 1
+
+		print(expression[location[-1]])
+		
+		targets = [None, None, None, None]
+
+		if type(expression[location[-1]]) == list:
+			targets[1] = terminize(expressions, location + [0])
+			if not arg:
+				targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1])
+			res = symbols.parenthetical(targets)
+		elif expression[location[-1]] in symbols.tex_args:
+			func, arg = symbols.tex_args[expression[location[-1]]]
+			args = expression[location[-1]+1:location[-1]+1+arg]
+			for i in range(arg):
+				args[i] = terminize(expressions, location[:len(location)-1] + [location[-1]+1+i], True)
+			targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1+arg], True)
+			res = func(targets, args)
+		else:
+			if not arg:
+				targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1])
+			res = symbols.term(targets, expression[location[-1]])
+
+		term = res.down
+		while term != None:
+			term.up = res
+			term = term.right
+		if res.right:
+			res.right.left = res
+
+		return res
+
+	except IndexError:
+		return None
+
 def order(tokens):
 	expressions = []
 
@@ -94,18 +135,23 @@ def order(tokens):
 				expression += [inner_expression]
 		expressions += [expression]
 
-	new_expressions = []
+	print(expressions, "after parse")
 
-	for expression in expressions:
-		new_expression = []
-		for e in expression:
-			if type(e) == list:
-				new_expression += [group(e)]
-			else:
-				new_expression += e
-		new_expressions += [new_expression]
+	return terminize(expressions, [0])
 
-	return new_expressions
+	# new_expressions = terminize(expressions)
+	# return new_expressions
+
+	# for expression in expressions:
+	# 	new_expression = []
+	# 	for e in expression:
+	# 		if type(e) == list:
+	# 			new_expression += [group(e)]
+	# 		else:
+	# 			new_expression += e
+	# 	new_expressions += [new_expression]
+
+	# return new_expressions
 
 def process_input(expressions, location, inp):
 	expression = expressions
@@ -179,50 +225,77 @@ def interpreter(expression, location):
 	print(statement)
 	return statement
 
-def poller(queue):
+def poller(queue, expression):
 	import curses
 	stdscr = curses.initscr()
 	stdscr.keypad(True)
 	stdscr.nodelay(True)
+
 	while True:
-		inp = ''
 		char = stdscr.getch()
 		if char == curses.KEY_LEFT:
-			inp = "LEFT"
+			if expression.left:
+				expression = expression.left
 		elif char == curses.KEY_RIGHT:
-			inp = "RIGHT"
+			if expression.right:
+				expression = expression.right
 		elif char == curses.KEY_UP:
-			inp = "UP"
+			if expression.up:
+				expression = expression.up
 		elif char == curses.KEY_DOWN:
-			inp = "DOWN"
+			if expression.down:
+				expression = expression.down
 
-		if len(inp) > 0:
-			e = process_input(expression, location, inp)
-			statement = interpreter(e, location)
+		if char != -1:
+			statement = expression.spoken()
 			queue.put(statement)
 
-def speaker(statement): 
+def speaker(statement, v = 0): 
 	engine = pyttsx3.init()
-	engine.say(statement)
+	voices = engine.getProperty('voices')
+	pitch(engine, statement, voices, v)
 	engine.runAndWait()
+
+def pitch(engine, statement, voices, v):
+	current_v = v
+	if v == len(voices_i) - 1:
+		next_v = 0
+	else:
+		next_v = v + 1
+	s = 0
+	while s < len(statement):
+		if statement[s] == "parenthetical":
+			engine.setProperty('voice', voices[voices_i[next_v]].id)
+			pitch(engine, statement[s+1], voices, next_v)
+			engine.setProperty('voice', voices[voices_i[current_v]].id)
+			v = current_v
+			s += 1
+		else:
+			print(statement[s])
+			engine.say(statement[s])
+		s += 1
 
 if __name__ == '__main__':
 	File = open('test_latex.tex', 'r').read()
 	queue = multiprocessing.Queue()
 	statement = ''
-	keyboard_process = multiprocessing.Process(target = poller, args = (queue,))
-	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
 	location = []
 	statement = []
+	voices_i = [0, 7, 26, 36]
 	parsed = tokenize(File)
+	print(parsed, "after tokenize")
 	ordered = order(parsed)
-	print(ordered)
+	print(ordered, "after terminize")
 	expression = ordered
+	keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
+	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
 	keyboard_process.start()
 
 	while True:
 		if not queue.empty():
+			v = 0
 			statement = queue.get()
+			print(statement)
 			if speaker_process.is_alive():
 				speaker_process.terminate()
 			speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
