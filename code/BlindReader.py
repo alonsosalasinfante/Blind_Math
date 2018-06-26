@@ -269,11 +269,13 @@ def pitch(engine, statement, voices, v):
 			pitch(engine, statement[s+1], voices, next_v)
 			engine.setProperty('voice', voices[voices_i[current_v]].id)
 			v = current_v
-			s += 1
+			s += 2
 		else:
-			print(statement[s])
-			engine.say(statement[s])
-		s += 1
+			output = ''
+			while s != len(statement) and statement[s] != "parenthetical":
+				output += statement[s]
+				s += 1
+			engine.say(output)
 
 if __name__ == '__main__':
 	File = open('test_latex.tex', 'r').read()
@@ -281,7 +283,7 @@ if __name__ == '__main__':
 	statement = ''
 	location = []
 	statement = []
-	voices_i = [0, 7, 26, 36]
+	voices_i = [0, 7, 36]
 	parsed = tokenize(File)
 	print(parsed, "after tokenize")
 	ordered = order(parsed)
