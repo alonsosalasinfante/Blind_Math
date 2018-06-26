@@ -24,5 +24,23 @@ Ideas: Term class: Each term will be categorized as:
 	1) Term (e.g. 12ab, a, 53)
 	2) Parenthetical (e.g. (1+2), (231/ab), etc.)
 	3) Operation (e.g. cos(12a), sum(a+2), int(ab), +, -, /, \frac{}{}, etc.)
+	4) Fix ambiguity (e.g. 2(x+b)+3=4, 2x+b+3=4, 2(x+b)+3=4?)
+	5) Add pitch changes to simulate parenthetical terms
+	6) Make software more adaptive to user
 
 Each term object will have a: left/right, up, down (go inside term if possible)
+
+Math Languages:
+	LaTeX
+	MathML
+Programs:
+	MAVIS Math Genie (reader, not updated/ended)
+	LAMBDA Editor (math editor, majority of users use speech synth)
+	BlindMath Editor (uses LaTeX)
+	INFTY Project
+
+Problems:
+	Editors can be too cumbersome to use (e.g. teachers have to learn how to write equations linearly)
+	Editors/interpreters need to be improved to read more complex math symbols
+	speech synth is not good enough (needs to be interactive)
+	
