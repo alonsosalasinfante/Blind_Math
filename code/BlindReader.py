@@ -229,8 +229,8 @@ def poller(queue, expression):
 	import curses
 	stdscr = curses.initscr()
 	stdscr.keypad(True)
-	stdscr.nodelay(True)
-
+	stdscr.timeout(-1)
+	
 	while True:
 		char = stdscr.getch()
 		if char == curses.KEY_LEFT:
@@ -294,14 +294,13 @@ if __name__ == '__main__':
 	keyboard_process.start()
 
 	while True:
-		if not queue.empty():
-			v = 0
-			statement = queue.get()
-			print(statement)
-			if speaker_process.is_alive():
-				speaker_process.terminate()
-			speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
-			speaker_process.start()
+		v = 0
+		statement = queue.get()
+		print(statement)
+		if speaker_process.is_alive():
+			speaker_process.terminate()
+		speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+		speaker_process.start()
 
 
 
