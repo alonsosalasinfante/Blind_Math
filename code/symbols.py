@@ -1,10 +1,10 @@
 letters = 'qwertyuiopasdfghjklzxcvbnm'
-# greek_hebrew_letters = {'\\alpha', '\\beta', '\\chi', '\\delta', '\\epsilon', '\\eta', '\\gamma', '\\iota', '\\kappa', '\\lambda', '\\mu', '\\nu', 'o', '\\omega', '\\phi', '\\pi', '\\psi', '\\rho', '\\sigma', '\\tau', '\\theta', '\\upsilon', '\\xi', '\\zeta', '\\digamma', '\\varepsilon', '\\varkappa', '\\varphi', '\\varrpi', '\\varrho', '\\vargsigma', '\\vartheta', '\\Delta', '\\Gamma', '\\Lambda', '\\Omega', '\\Phi', '\\Pi', '\\Psi', '\\Sigma', '\\Theta', '\\Upsilon', '\\Xi', '\\aleph', '\\beth', '\\daleth', '\\gimel'}
+greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Delta', '\\Gamma': 'Gamma', '\\Lambda': 'Lambda', '\\Omega': 'Omega', '\\Phi': 'Phi', '\\Pi': 'Pi', '\\Psi': 'Psi', '\\Sigma': 'Sigma', '\\Theta': 'Theta', '\\Upsilon': 'Upsilon', '\\Xi': 'Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
 numbers = '0123456789'
 operations = '+-/*=^'
 tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow'}
 tex_base_term_opertations = {'\\times': 'times', '\\pm': 'pm', '\\mp': 'mp', '\\div': 'div', '\ast': 'ast', '\\cdot': 'cdot'}
-all_tex_keys = {**tex_operations, **tex_base_term_opertations}
+all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
 
 class term():
 	def __init__(self, targets, value = None):
@@ -95,7 +95,8 @@ class frac(term):
 			return ["a term divided by another term "]
 
 class sqrt(term):
-	def __init__(self, targets):
+	def __init__(self, targets, args):
+		targets[1] = args[0]
 		super().__init__(targets)
 		if not self.down.base_term:
 			self.base_term = False 
