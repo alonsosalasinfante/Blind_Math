@@ -82,46 +82,50 @@ def group(expression):
 			new_expression += [new_term]
 	return new_expression
 
-def terminize(expressions, location, arg = False):
+def terminize(expressions, loc, arg = False):
 	try:
+		if loc in checked:
+			return terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+		else:
+			checked.add(loc)
 		expression = expressions
 		i = 0
-		while i < len(location) - 1:
-			expression = expression[location[i]]
+		while i < len(loc) - 1:
+			expression = expression[loc[i]]
 			i += 1
 
 		targets = [None, None, None, None]
 
-		if len(location) == 0:
-			targets[1] = terminize(expressions, location + [0])
+		if len(loc) == 0:
+			targets[1] = terminize(expressions, loc + (0,))
 			res = symbols.equation_list(targets, len(expression))
-		elif type(expression[location[-1]]) == list:
-			targets[1] = terminize(expressions, location + [0])
-			if not arg and len(location) > 0:
-				targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1])
-			if arg and len(expression[location[-1]]) == 1:
-				res = symbols.term(targets, expression[location[-1]][0])
-			elif len(location) == 1: 
-				if len(expression[location[-1]]) == 1:
+		elif type(expression[loc[-1]]) == list:
+			targets[1] = terminize(expressions, loc + (0,))
+			if not arg and len(loc) > 0:
+				targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			if arg and len(expression[loc[-1]]) == 1:
+				res = symbols.term(targets, expression[loc[-1]][0])
+			elif len(loc) == 1: 
+				if len(expression[loc[-1]]) == 1:
 					targets[1] = targets[1].down.down
 					res = symbols.expression(targets)
 				else:
 					res = symbols.equation(targets)
-			elif len(location) == 2:
-				res = symbols.expression(targets, location[-1]//2 + 1)
+			elif len(loc) == 2:
+				res = symbols.expression(targets, loc[-1]//2 + 1)
 			else:
 				res = symbols.parenthetical(targets)
-		elif expression[location[-1]] in symbols.tex_args:
-			func, arg = symbols.tex_args[expression[location[-1]]]
-			args = expression[location[-1]+1:location[-1]+1+arg]
+		elif expression[loc[-1]] in symbols.tex_args:
+			func, arg = symbols.tex_args[expression[loc[-1]]]
+			args = expression[loc[-1]+1:loc[-1]+1+arg]
 			for i in range(arg):
-				args[i] = terminize(expressions, location[:len(location)-1] + [location[-1]+1+i], True)
-			targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1+arg], True)
+				args[i] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1+i,), True)
+			targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1+arg,))
 			res = func(targets, args)
 		else:
 			if not arg:
-				targets[3] = terminize(expressions, location[:len(location)-1] + [location[-1]+1])
-			res = symbols.term(targets, expression[location[-1]])
+				targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			res = symbols.term(targets, expression[loc[-1]])
 
 		term = res.down
 		while term != None:
@@ -149,37 +153,37 @@ def order(tokens):
 
 	print(expressions, "after parse\r")
 
-	return terminize(expressions, [])
+	return terminize(expressions, ())
 
-def process_input(expressions, location, inp):
+def process_input(expressions, loc, inp):
 	expression = expressions
 
-	for i in location[:-1]:
+	for i in loc[:-1]:
 		expression = expression[i]
 	if inp == "UP":
-		if len(location) > 0:
-			location.pop()
+		if len(loc) > 0:
+			loc.pop()
 	elif inp == "DOWN":
-		if (len(location) == 0 and type(expression[0]) == list) or type(expression[location[-1]]) == list:
-			location += [0] 
+		if (len(loc) == 0 and type(expression[0]) == list) or type(expression[loc[-1]]) == list:
+			loc += [0] 
 	elif inp == "LEFT":
-		if type(expression) == list and len(location) > 0 and location[-1] > 0:
-			location[-1] = location[-1] - 1
+		if type(expression) == list and len(loc) > 0 and loc[-1] > 0:
+			loc[-1] = loc[-1] - 1
 	elif inp == "RIGHT":
-		if type(expression) == list and len(location) > 0 and location[-1] < len(expression) - 1:
-			location[-1] = location[-1] + 1
+		if type(expression) == list and len(loc) > 0 and loc[-1] < len(expression) - 1:
+			loc[-1] = loc[-1] + 1
 	
 	expression = expressions
 
-	for i in location:
+	for i in loc:
 		expression = expression[i]
 	return expression
 
-def interpreter(expression, location):
+def interpreter(expression, loc):
 	statement = ''
-	if len(location) == 0:
+	if len(loc) == 0:
 		statement = "This is a list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
-	elif len(location) == 1:
+	elif len(loc) == 1:
 		if len(expression) == 1:
 			statement = "This is an expression with " + str(len(expression[0])) + " term" + ('s' if len(expression[0]) > 1 else '')
 		else:
@@ -193,7 +197,7 @@ def interpreter(expression, location):
 					statement += 'equals '
 	else:
 		if type(expression) == list:
-			if len(location) > 2:
+			if len(loc) > 2:
 				statement = "Parenthetical term. "
 			for i in range(len(expression)):
 				if type(expression[i]) == list:
@@ -291,23 +295,24 @@ if __name__ == '__main__':
 	File = open('test_latex.tex', 'r').read()
 	queue = multiprocessing.Queue()
 	statement = ''
-	location = []
+	loc = []
 	statement = []
+	checked = set()
 	voices_i = [0, 7, 36]
 	parsed = tokenize(File)
 	print(parsed, "after tokenize", '\r')
 	ordered = order(parsed)
 	print(ordered, "after terminize", '\r')
-	# expression = ordered
-	# keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
-	# speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
-	# keyboard_process.start()
+	expression = ordered
+	keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
+	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	keyboard_process.start()
 
-	# while True:
-	# 	v = 0
-	# 	statement = queue.get()
-	# 	print(statement, '\r')
-	# 	if speaker_process.is_alive():
-	# 		speaker_process.terminate()
-	# 	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
-	# 	speaker_process.start()
+	while True:
+		v = 0
+		statement = queue.get()
+		print(statement, '\r')
+		if speaker_process.is_alive():
+			speaker_process.terminate()
+		speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+		speaker_process.start()

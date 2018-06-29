@@ -27,12 +27,10 @@ class parenthetical(term):
 		self.base_term = False
 
 	def spoken(self):
-		print("\n$$$$$$$$$$$$$$$$$$$$\r")
 		inner_term = self.down
 		output  = ["parenthetical"]
 		inner = []
 		while inner_term != None:
-			print(inner_term, '\r')
 			if inner_term.base_term:
 				inner += inner_term.spoken()
 			else:
@@ -40,9 +38,7 @@ class parenthetical(term):
 			if inner_term.right and type(inner_term) == term and inner_term.value not in operations and type(inner_term.right) != term:
 				inner += ["times "]
 			inner_term = inner_term.right
-			print(inner, '\r')
 		output += [inner]
-		print("YEEEEEEEEEEEE", output, '\r')
 		return output
 
 class expression(parenthetical):
