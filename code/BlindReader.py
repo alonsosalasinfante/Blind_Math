@@ -1,8 +1,22 @@
-import symbols, os, multiprocessing, pyttsx3
+import symbols
+import curses
+import os
+import multiprocessing as mp
+import pyttsx3
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvas
+from tkinter import *
+from tkinter.ttk import *
 
 def tokenize(text):
 	'''
-	Tokenizer function to isolate individual expressions and delete white space
+	Tokenizer function which deletes whitespace and separates all important tokens
+	for any mathematical expressions in the LaTeX document
+	
+		Inputs: text is the entire LaTeX document in plaintext
+		Returns: an list of all relevent tokens of each math expression found
 	'''
 	i = 0
 	tokens = []
@@ -27,7 +41,7 @@ def tokenize(text):
 							new_expression += [symbols.all_tex_keys[key]]
 							i += len(key) - 1 
 							break
-				elif text[i] == '^':
+				elif text[i] in symbols.all_tex_keys:
 					new_expression += [symbols.all_tex_keys[text[i]]]
 				elif text[i] not in '\n ':
 					term = [text[i]]
@@ -44,15 +58,51 @@ def tokenize(text):
 		i += 1
 	return tokens
 
+def fix_terms(term):
+	if term.down:
+		fix_terms(term.down)
+	if type(term) in symbols.object_fixes:
+		term.fix()
+	if term.right:
+		fix_terms(term.right)
+
+def order(tokens, checked):
+	'''
+	Function which first parses the math tokens and creates nested 
+	lists for any parenthetical terms/function arguments and rearranges
+	function arguments then creates linked term objects
+	
+		Inputs: Math expression token list from tokenize function
+		Returns: A linked equation_list object
+	'''
+	expressions = []
+	for token in tokens:
+		expression = []
+		index = 0
+		while index < len(token):
+			inner_expression, index = parse(token, index)
+			if inner_expression is not None:
+				expression += [inner_expression]
+		expressions += [expression]
+	print(expressions, "after parse\r")
+	expressions = terminize(checked, expressions, ())
+	fix_terms(expressions)
+	return expressions
+
 def parse(token, index):
+	'''
+	Parsing function which rearranges tokens and creates nested lists 
+	of parenthetical terms
+
+		Inputs: Token list to be parsed
+		Returns: The new, parsed token/token list and the next index
+	'''
 	while index < len(token):
 		if token[index] == '(':
 			expression = []
 			inner_expression, index = parse(token, index + 1)
 			while inner_expression is not None:
 				expression += [inner_expression]
-				if inner_expression == 'pow':
-					expression[-2], expression[-1] = expression[-1], expression[-2]
 				inner_expression, index = parse(token, index)
 			return expression, index
 		elif token[index] == ')':
@@ -62,30 +112,22 @@ def parse(token, index):
 		else:
 			return token[index], index + 1
 
-def group(expression):
-	new_expression = []
-	checked = set()
-	for i in range(len(expression)):
-		if i not in checked:
-			if type(expression[i]) != list:
-				new_term = expression[i]
-				if expression[i].lower() in symbols.numbers + symbols.letters:
-					checked.add(i) 
-					for j in range(i + 1, len(expression)):
-						if type(expression[j]) != list and expression[j].lower() in symbols.numbers + symbols.letters:
-							checked.add(j)
-							new_term += expression[j]
-						else:
-							break
-			else:
-				new_term = group(expression[i])
-			new_expression += [new_term]
-	return new_expression
+def terminize(checked, expressions, loc, arg = False):
+	'''
+	Terminizer function which navigates the entire expression list and initialize
+	linked term objects according to their type
 
-def terminize(expressions, loc, arg = False):
+		Inputs: expressions is the entire mathematical expression list after 
+					being passed through tokenize and parse functions
+				loc is the current location within the expression list, this
+					is the token to be evaluated/initialized
+				arg is an optional argument which indicates if the current
+					token at loc is an argument to a previous term
+		Returns: a linked term object
+	'''
 	try:
 		if loc in checked:
-			return terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			return terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
 		else:
 			checked.add(loc)
 		expression = expressions
@@ -96,35 +138,34 @@ def terminize(expressions, loc, arg = False):
 
 		targets = [None, None, None, None]
 
-		if len(loc) == 0:
-			targets[1] = terminize(expressions, loc + (0,))
-			res = symbols.equation_list(targets, len(expression))
-		elif type(expression[loc[-1]]) == list:
-			targets[1] = terminize(expressions, loc + (0,))
+		# if len(loc) == 0:
+		# 	targets[1] = terminize(checked, expressions, loc + (0,))
+		# 	res = symbols.equation_list(targets, len(expression))
+		if type(expression[loc[-1]]) == list:
+			targets[1] = terminize(checked, expressions, loc + (0,))
 			if not arg and len(loc) > 0:
-				targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
-			if arg and len(expression[loc[-1]]) == 1:
-				res = symbols.term(targets, expression[loc[-1]][0])
-			elif len(loc) == 1: 
-				if len(expression[loc[-1]]) == 1:
-					targets[1] = targets[1].down.down
-					res = symbols.expression(targets)
-				else:
-					res = symbols.equation(targets)
-			elif len(loc) == 2:
-				res = symbols.expression(targets, loc[-1]//2 + 1)
-			else:
-				res = symbols.parenthetical(targets)
+				targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			# if arg and len(expression[loc[-1]]) == 1:
+			# 	res = symbols.term(targets, expression[loc[-1]][0])
+			# elif len(loc) == 1: 
+			# 	if len(expression[loc[-1]]) == 1:
+			# 		targets[1] = targets[1].down.down
+			# 		res = symbols.expression(targets)
+			# 	else:
+			# 		res = symbols.equation(targets)
+			# elif len(loc) == 2:
+			# 	res = symbols.expression(targets, loc[-1]//2 + 1)
+			res = symbols.parenthetical(targets)
 		elif expression[loc[-1]] in symbols.tex_args:
 			func, arg = symbols.tex_args[expression[loc[-1]]]
 			args = expression[loc[-1]+1:loc[-1]+1+arg]
 			for i in range(arg):
-				args[i] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1+i,), True)
-			targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1+arg,))
+				args[i] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1+i,), True)
+			targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1+arg,))
 			res = func(targets, args)
 		else:
 			if not arg:
-				targets[3] = terminize(expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+				targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
 			res = symbols.term(targets, expression[loc[-1]])
 
 		term = res.down
@@ -139,126 +180,78 @@ def terminize(expressions, loc, arg = False):
 	except IndexError:
 		return None
 
-def order(tokens):
-	expressions = []
+def poller(output_queue, new_queue):
+	'''
+	Keyboard polling function, ran on a separate process which 
+	waits for a keyboard input and then processes it accordingly,
+	adding to the global queue the next statement to be read out
 
-	for token in tokens:
-		expression = []
-		index = 0
-		while index < len(token):
-			inner_expression, index = parse(token, index)
-			if inner_expression is not None:
-				expression += [inner_expression]
-		expressions += [expression]
-
-	print(expressions, "after parse\r")
-
-	return terminize(expressions, ())
-
-def process_input(expressions, loc, inp):
-	expression = expressions
-
-	for i in loc[:-1]:
-		expression = expression[i]
-	if inp == "UP":
-		if len(loc) > 0:
-			loc.pop()
-	elif inp == "DOWN":
-		if (len(loc) == 0 and type(expression[0]) == list) or type(expression[loc[-1]]) == list:
-			loc += [0] 
-	elif inp == "LEFT":
-		if type(expression) == list and len(loc) > 0 and loc[-1] > 0:
-			loc[-1] = loc[-1] - 1
-	elif inp == "RIGHT":
-		if type(expression) == list and len(loc) > 0 and loc[-1] < len(expression) - 1:
-			loc[-1] = loc[-1] + 1
-	
-	expression = expressions
-
-	for i in loc:
-		expression = expression[i]
-	return expression
-
-def interpreter(expression, loc):
-	statement = ''
-	if len(loc) == 0:
-		statement = "This is a list of " + str(len(expression)) + " equation" + ('s' if len(expression) > 1 else '')
-	elif len(loc) == 1:
-		if len(expression) == 1:
-			statement = "This is an expression with " + str(len(expression[0])) + " term" + ('s' if len(expression[0]) > 1 else '')
-		else:
-			statement = 'This is an equation. '
-			j = 1
-			for i in range(len(expression)):
-				if type(expression[i]) == list:
-					statement += 'expression ' + str(j) + ' '
-					j += 1
-				elif expression[i] == '=':
-					statement += 'equals '
-	else:
-		if type(expression) == list:
-			if len(loc) > 2:
-				statement = "Parenthetical term. "
-			for i in range(len(expression)):
-				if type(expression[i]) == list:
-					statement += "a term "
-				elif expression[i] == '/':
-					statement += "divided by "
-				elif expression[i] == '+':
-					statement += "plus "
-				elif expression[i] == '-':
-					statement += "minus "
-				else:
-					statement += expression[i] + '. '
-				if i < len(expression) - 1 and (type(expression[i]) == list or expression[i] in symbols.numbers + symbols.letters) and (type(expression[i+1]) == list or expression[i+1] in symbols.numbers + symbols.letters):
-					statement += "times "
-		else:
-			if type(expression) == str:
-				if expression == '/':
-					statement = "divided by "
-				elif expression == '+':
-					statement = "plus "
-				elif expression == '-':
-					statement = "minus "
-				else:
-					statement = expression + ". "
-	if len(statement) == 0:
-		statement = "ERROR"
-	print(statement, '\r')
-	return statement
-
-def poller(queue, expression):
-	import curses
+		Inputs: queue is the global statement queue
+				expression is the linked expression object to be navigated
+	'''
 	stdscr = curses.initscr()
 	stdscr.keypad(True)
 	stdscr.timeout(-1)
+	expression = new_queue.get()
 
 	while True:
+		if not new_queue.empty():
+			expression = new_queue.get()
 		char = stdscr.getch()
-		if char == curses.KEY_LEFT:
-			if expression.left:
-				expression = expression.left
-		elif char == curses.KEY_RIGHT:
-			if expression.right:
-				expression = expression.right
-		elif char == curses.KEY_UP:
-			if expression.up:
-				expression = expression.up
-		elif char == curses.KEY_DOWN:
-			if expression.down:
-				expression = expression.down
+		if expression is not None:
+			if char == curses.KEY_LEFT:
+				if expression.left:
+					expression = expression.left
+			elif char == curses.KEY_RIGHT:
+				if expression.right:
+					expression = expression.right
+			elif char == curses.KEY_UP:
+				if expression.up:
+					expression = expression.up
+			elif char == curses.KEY_DOWN:
+				if expression.down:
+					expression = expression.down
 
-		if char != -1:
-			statement = expression.spoken()
-			queue.put(statement)
+			if char != -1 and char != curses.KEY_ENTER:
+				statement = expression.spoken()
+				output_queue.put(statement)
+
+def reader(output_queue):
+	voices_i = [0, 7, 36]
+	speaker_process = mp.Process(target = speaker, args = ('',))
+	while True:
+		statement = output_queue.get()
+		print(statement, '\r')
+		if speaker_process.is_alive():
+			speaker_process.terminate()
+		speaker_process = mp.Process(target = speaker, args = (statement,))
+		speaker_process.start()
 
 def speaker(statement, v = 0): 
+	'''
+	Text to speech function which initializes the tts engine then process 
+	the statement to be read. This function is to be terminated when a new
+	keyboard input is detected
+
+		Inputs: statement is the current statement to be read out
+				v is the current voice to read out the statement
+	'''
 	engine = pyttsx3.init()
 	voices = engine.getProperty('voices')
-	pitch(engine, statement, voices, v)
+	process_statement(engine, statement, voices, v)
 	engine.runAndWait()
 
-def pitch(engine, statement, voices, v):
+def process_statement(engine, statement, voices, v):
+	'''
+	Function which process the statements put on the global statement 
+	queue. Adjusts the tts engine's voice according to parenthetical 
+	terms. 
+
+		Inputs:	engine is the tts engine (pyttsx3 module)
+				statement is the statement to be read aloud
+				voices is the list of voices available from the engine
+				v is the current index that selects the engine's voice
+	'''
 	current_v = v
 	if v == len(voices_i) - 1:
 		next_v = 0
@@ -268,20 +261,20 @@ def pitch(engine, statement, voices, v):
 	while s < len(statement):
 		if statement[s] == "parenthetical":
 			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			pitch(engine, statement[s+1], voices, next_v)
+			process_statement(engine, statement[s+1], voices, next_v)
 			engine.setProperty('voice', voices[voices_i[current_v]].id)
 			v = current_v
 			s += 2
 		elif statement[s] == "frac1":
 			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			pitch(engine, statement[s+1], voices, next_v)
+			process_statement(engine, statement[s+1], voices, next_v)
 			engine.setProperty('voice', voices[voices_i[current_v]].id)
 			engine.say(statement[s+2])
 			s += 3
 		elif statement[s] == "frac2":
 			engine.say(statement[s+1])
 			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			pitch(engine, statement[s+2], voices, next_v)
+			process_statement(engine, statement[s+2], voices, next_v)
 			engine.setProperty('voice', voices[voices_i[current_v]].id)
 			s += 3
 		else:
@@ -291,28 +284,125 @@ def pitch(engine, statement, voices, v):
 				s += 1
 			engine.say(output)
 
-if __name__ == '__main__':
-	File = open('test_latex.tex', 'r').read()
-	queue = multiprocessing.Queue()
-	statement = ''
+def graph(text):
+	tmptext = entry.get()
+	tmptext, new_expression = "$"+tmptext+"$", "$"+tmptext+"$"
 	loc = []
 	statement = []
-	checked = set()
-	voices_i = [0, 7, 36]
-	parsed = tokenize(File)
-	print(parsed, "after tokenize", '\r')
-	ordered = order(parsed)
-	print(ordered, "after terminize", '\r')
-	expression = ordered
-	keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
-	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
-	keyboard_process.start()
+	parsed = tokenize(new_expression)
+	print(parsed)
+	expression = order(new_expression, set())
+	print(expression)
+	new_queue.put(expression)
 
-	while True:
-		v = 0
-		statement = queue.get()
-		print(statement, '\r')
-		if speaker_process.is_alive():
-			speaker_process.terminate()
-		speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
-		speaker_process.start()
+	ax.clear()
+	ax.text(0.2, 0.6, tmptext, fontsize = 50)  
+	canvas.draw()
+
+if __name__ == '__main__':
+
+	new_queue = mp.Queue()
+	output_queue = mp.Queue()
+
+	# keyboard_process = mp.Process(target = poller, args = (output_queue, new_queue))
+	# reader_process = mp.Process(target = reader, args = (output_queue,))
+	# keyboard_process.start()
+	# reader_process.start()
+
+	root = Tk()
+	mainframe = Frame(root)
+	mainframe.pack()
+
+	text = StringVar()
+	entry = Entry(mainframe, width=110, textvariable=text)
+	entry.pack()
+
+	label = Label(mainframe)
+	label.pack()
+
+	fig = matplotlib.figure.Figure(figsize=(6, 6), dpi=100)
+	ax = fig.add_subplot(111)
+
+	canvas = FigureCanvas(fig, master=label)
+	canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+	canvas._tkcanvas.pack(side=TOP, fill=BOTH, expand=1)
+
+	ax.get_xaxis().set_visible(False)
+	ax.get_yaxis().set_visible(False)
+
+	root.bind('<Return>', graph)
+	root.mainloop()
+
+
+
+
+
+
+
+
+
+	# while True:
+	# 	expression = expression_queue.get()
+	# 	if reader_process.is_alive():
+	# 		reader_process.terminate()
+	# 	reader_process = mp.Process(target = reader, args = (expression, output_queue))
+	# 	reader_process.start()
+
+	# expression = expression_queue.get()
+	# queue = multiprocessing.Queue()
+	# statement = ''
+	# loc = []
+	# statement = []
+	# voices_i = [0, 7, 36]
+	# tokens = tokenize(expression)
+	# expression = order(tokens)
+	# keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
+	# speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	# keyboard_process.start()
+
+	# root = Tk()
+	# main = ttk.Frame(root)
+	# root.mainloop()
+
+	# while True:
+	# 	v = 0
+	# 	statement = queue.get()
+	# 	print(statement, '\r')
+	# 	if speaker_process.is_alive():
+	# 		speaker_process.terminate()
+	# 	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	# 	speaker_process.start()
+
+
+
+
+######################################################
+
+	# File = open('test_latex.tex', 'r').read()
+	# queue = multiprocessing.Queue()
+	# statement = ''
+	# loc = []
+	# statement = []
+	# checked = set()
+	# voices_i = [0, 7, 36]
+	# tokens = tokenize(File)
+	# print(tokens, "after tokenize", '\r')
+	# ordered = order(tokens)
+	# print(ordered, "after terminize", '\r')
+	# expression = ordered
+	# keyboard_process = multiprocessing.Process(target = poller, args = (queue, expression))
+	# speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	# keyboard_process.start()
+
+	# root = Tk()
+	# main = ttk.Frame(root)
+	# root.mainloop()
+
+	# while True:
+	# 	v = 0
+	# 	statement = queue.get()
+	# 	print(statement, '\r')
+	# 	if speaker_process.is_alive():
+	# 		speaker_process.terminate()
+	# 	speaker_process = multiprocessing.Process(target = speaker, args = (statement,))
+	# 	speaker_process.start()

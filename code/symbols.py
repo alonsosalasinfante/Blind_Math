@@ -1,9 +1,9 @@
 letters = 'qwertyuiopasdfghjklzxcvbnm'
-greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Delta', '\\Gamma': 'Gamma', '\\Lambda': 'Lambda', '\\Omega': 'Omega', '\\Phi': 'Phi', '\\Pi': 'Pi', '\\Psi': 'Psi', '\\Sigma': 'Sigma', '\\Theta': 'Theta', '\\Upsilon': 'Upsilon', '\\Xi': 'Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
+greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Capital Delta', '\\Gamma': 'Capital Gamma', '\\Lambda': 'Capital Lambda', '\\Omega': 'Capital Omega', '\\Phi': 'Capital Phi', '\\Pi': 'Capital Pi', '\\Psi': 'Capital Psi', '\\Sigma': 'Capital Sigma', '\\Theta': 'Capital Theta', '\\Upsilon': 'Capital Upsilon', '\\Xi': 'Capital Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
 numbers = '0123456789'
 operations = '+-/*=^'
-tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow'}
-tex_base_term_opertations = {'\\times': 'times', '\\pm': 'pm', '\\mp': 'mp', '\\div': 'div', '\ast': 'ast', '\\cdot': 'cdot'}
+tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\\sin': 'sin', '\\cos': 'cos', '\\tan': 'tan', '\\cot': 'cot', '\\arcsin': 'arcsin', '\\arccos': 'arccos', '\\artan': 'arctan', '\\arccot': 'arccot', '\\sec': 'sec', '\\csc': 'csc'}
+tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
 all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
 
 class term():
@@ -18,7 +18,17 @@ class term():
 					'-': ["minus "],
 					'*': ["times "],
 					'/': ["divided by "],
-					'=': ["equals "]
+					'=': ["equals "],
+					'pm': ["plus or minus "],
+					'mp': ["minus or plus"],
+					'ne': ["not equal to "],
+					'approx': ["is approximately equal to "],
+					'cong': ["is congruent to "],
+					'equiv': ["is equivalent to "],
+					'>': ["is greater than "],
+					'<': ["is less than "],
+					'leq': ["is less than or equal to "],
+					'geq': ["is greater than or equal to"]
 				}.get(self.value, [self.value + ' '])
 
 class parenthetical(term):
@@ -35,7 +45,7 @@ class parenthetical(term):
 				inner += inner_term.spoken()
 			else:
 				inner += ["a term "]
-			if inner_term.right and type(inner_term) == term and inner_term.value not in operations and type(inner_term.right) != term:
+			if inner_term.right and (not inner_term.value or inner_term.value not in operations) and (not inner_term.right.value or inner_term.right.value not in operations):
 				inner += ["times "]
 			inner_term = inner_term.right
 		output += [inner]
@@ -107,15 +117,29 @@ class sqrt(term):
 		else:
 			return ["The square root of a parenthetical term "]
 
+class subscript(term):
+	def __init__(self, targets, args):
+		super().__init__(targets)
+
+	def spoken(self):
+		return super().spoken() + ["sub "] + self.down.spoken()
+
+	def fix(self):
+		self.value = self.left.value
+		if self.left.left:
+			self.left.left.right = self
+		else:
+			self.left.up.down = self
+		self.left = self.left.left
+		if self.right.right:
+			self.right.right.left = self
+		self.down = self.right
+		self.right = self.right.right
+		self.down.base_term = True
+
 class power(term):
 	def __init__(self, targets, args):
-		down = args[0]
-		down.right = term([None, None, down, args[1]], '^')
-		args[1].left = down.right
-		targets[1] = down
 		super().__init__(targets)
-		if not (self.down.base_term and self.down.right.base_term):
-			self.base_term = False 
 
 	def spoken(self):
 		if self.base_term:
@@ -127,17 +151,86 @@ class power(term):
 		else:
 			return ["A base term raised to the power of another term "]
 
+	def fix(self):
+		if self.left.left:
+			self.left.left.right = self
+		else:
+			self.left.up.down = self		
+		self.down = self.left
+		self.left = self.left.left
+		self.down.up = self
+		self.down.left = None
+		self.down.right = term([self, None, self.down, self.right], '^')
+
+		if self.right.right:
+			self.right.right.left = self
+		self.right = self.right.right
+		self.down.right.right.left = self.down.right
+		self.down.right.right.up = self
+		self.down.right.right.right = None
+
+		if not (self.down.base_term and self.down.right.right.base_term):
+			self.base_term = False 
+
 class trig(term):
-	def __init__(self, targets, args):
+	def __init__(self, targets, args, op):
+		targets[1] = args[0]
 		super().__init__(targets)
-		self.operation = args[0]
+		self.operation = op
 		if not self.down.base_term:
 			self.base_term = False 
 
 	def spoken(self):
 		if self.base_term:
-			return [op, " of "] + self.down.spoken()
+			return [self.operation, " of "] + self.down.spoken()
 		else:
-			return [op, " of a term "]
+			return [self.operation, " of a term "]
 
-tex_args = {'frac': (frac, 2), 'sqrt': (sqrt, 1), 'pow': (power, 2)}
+class cos(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'cosine')
+
+class sin(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'sine')
+
+class tan(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'tangent')
+
+class cot(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'cotangent')
+
+class arccos(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'arc cosine')
+
+class arcsin(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'arc sine')
+
+class arctan(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'arc tangent')
+
+class arccot(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'arc cotangent')
+
+class sec(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'secant')
+
+class csc(trig):
+	def __init__(self, targets, args):
+		super().__init__(targets, args, 'cosecant')
+
+tex_args = {'frac': (frac, 2), 'sqrt': (sqrt, 1), 'pow': (power, 0), 'sub': (subscript, 0), 'cos': (cos, 1), 'sin': (sin, 1), 'tan': (tan, 1), 'cot': (cot, 1), 'arccos': (arccos, 1), 'arcsin': (arcsin, 1), 'arctan': (arctan, 1), 'arccot': (arccot, 1), 'sec': (sec, 1), 'csc': (csc, 1)}
+object_fixes = {subscript, power}
+
+
+
+
+
+
