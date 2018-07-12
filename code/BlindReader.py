@@ -18,48 +18,38 @@ def tokenize(text):
 		Inputs: text is the entire LaTeX document in plaintext
 		Returns: an list of all relevent tokens of each math expression found
 	'''
-	i = 0
-	tokens = []
-
+	i = 1
 	while i < len(text):
-		if text[i] == '$' or text[i:i+2] == '\\[':
-			if text[i] == '$':
-				i += 1
-			elif text[i:i+2] == '\\[':
-				i += 2
-			new_expression = ['(']
-			while text[i] != '$' and text[i:i+2] != '\\]':
-				if text[i] == '=':
-					new_expression += [')'] + [text[i]] + ['(']
-				elif text[i] == '{':
-					new_expression += '('
-				elif text[i] == '}':
-					new_expression += ')'
-				elif text[i] == '\\':
-					for key in symbols.all_tex_keys:
-						if text[i:i+len(key)] == key:
-							new_expression += [symbols.all_tex_keys[key]]
-							i += len(key) - 1 
-							break
-				elif text[i] in symbols.all_tex_keys:
-					new_expression += [symbols.all_tex_keys[text[i]]]
-				elif text[i] not in '\n ':
-					term = [text[i]]
-					if term[0] in symbols.numbers:
+		new_expression = ['(']
+		while text[i] != '$':
+			if text[i] == '=':
+				new_expression += [')'] + [text[i]] + ['(']
+			elif text[i] == '{':
+				new_expression += '('
+			elif text[i] == '}':
+				new_expression += ')'
+			elif text[i] == '\\':
+				for key in symbols.all_tex_keys:
+					if text[i:i+len(key)] == key:
+						new_expression += [symbols.all_tex_keys[key]]
+						i += len(key) - 1 
+						break
+			elif text[i] in symbols.all_tex_keys:
+				new_expression += [symbols.all_tex_keys[text[i]]]
+			elif text[i] not in '\n ':
+				term = [text[i]]
+				if term[0] in symbols.numbers:
+					i += 1
+					while text[i] in symbols.numbers:
+						term[0] += text[i]
 						i += 1
-						while text[i] in symbols.numbers:
-							term[0] += text[i]
-							i += 1
-						i -= 1
-					new_expression += term
-				i += 1
-			new_expression += [')']
-			tokens += [new_expression]
-		i += 1
-	return tokens
+					i -= 1
+				new_expression += term
+			i += 1
+		new_expression += [')']
+		return new_expression
 
 def fix_terms(term):
-	# print(term, "TEEEEEERM")
 	if term.down:
 		fix_terms(term.down)
 	if type(term) in symbols.object_fixes:
@@ -76,20 +66,33 @@ def order(tokens, checked):
 		Inputs: Math expression token list from tokenize function
 		Returns: A linked equation_list object
 	'''
-	expressions = []
-	for token in tokens:
-		expression = []
-		index = 0
-		while index < len(token):
-			inner_expression, index = parse(token, index)
-			if inner_expression is not None:
-				expression += [inner_expression]
-		expressions += [expression]
-	print(expressions, "after parse\r")
-	expressions = terminize(checked, expressions, ())
-	print(expressions, "after expressions")
-	fix_terms(expressions)
-	return expressions
+	expression = []
+	index = 0
+	while index < len(tokens):
+		inner_expression, index = parse(tokens, index)
+		if inner_expression is not None:
+			expression += [inner_expression]
+	print(expression, "after parse\r")
+	expression = terminize(checked, expression, ())
+	print(expression, "after expressions")
+	# fix_terms(expression)
+	return expression
+
+
+	# expressions = []
+	# for token in tokens:
+	# 	expression = []
+	# 	index = 0
+	# 	while index < len(token):
+	# 		inner_expression, index = parse(token, index)
+	# 		if inner_expression is not None:
+	# 			expression += [inner_expression]
+	# 	expressions += [expression]
+	# print(expressions, "after parse\r")
+	# expressions = terminize(checked, expressions, ())
+	# print(expressions, "after expressions")
+	# fix_terms(expressions)
+	# return expressions
 
 def parse(token, index):
 	'''
@@ -127,6 +130,66 @@ def terminize(checked, expressions, loc, arg = False):
 					token at loc is an argument to a previous term
 		Returns: a linked term object
 	'''
+	try:
+		if loc in checked: # Returns the next valid right term
+			return terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+		else:
+			checked.add(loc)
+
+		expression = expressions # Finds the expressions
+		i = 0
+		while i < len(loc) - 1:
+			expression = expression[loc[i]]
+			i += 1
+
+		targets = [None, None, None, None]
+
+		if len(loc) == 0: # Determines expression or equation
+			targets[1] = terminize(checked, expressions, loc + (0,))
+			if len(expression) == 1:
+				targets[1] = targets[1].down
+				res = symbols.expression(targets)
+			else:
+				res = symbols.equation(targets)
+		elif type(expression[loc[-1]]) == list:
+			targets[1] = terminize(checked, expressions, loc + (0,))
+			if not arg: # Assigns the right term
+				targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			if arg and len(expression[loc[-1]]) == 1: # Checks for term arguments
+				res = symbols.term(targets, expression[loc[-1]][0])
+			elif len(loc) == 1:
+				res = symbols.expression(targets, loc[0]//2 + 1)
+			else:
+				res = symbols.parenthetical(targets)
+		elif expression[loc[-1]] in symbols.tex_args:
+			func, arg = symbols.tex_args[expression[loc[-1]]]
+			args = expression[loc[-1]+1:loc[-1]+1+arg]
+			for i in range(arg):
+				args[i] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1+i,), True)
+			targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1+arg,))
+			res = func(targets, args)
+		else:
+			if not arg:
+				targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
+			res = symbols.term(targets, expression[loc[-1]])
+
+		term = res.down
+		while term != None:
+			term.up = res
+			term = term.right
+		if res.right:
+			res.right.left = res
+
+		return res
+
+	except IndexError:
+		return None
+
+
+
+
+
+
 	try:
 		if loc in checked:
 			return terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
@@ -177,7 +240,6 @@ def terminize(checked, expressions, loc, arg = False):
 		if res.right:
 			res.right.left = res
 
-		print(loc, type(res))
 		return res
 
 	except IndexError:
@@ -307,10 +369,10 @@ if __name__ == '__main__':
 	new_queue = mp.Queue()
 	output_queue = mp.Queue()
 
-	# keyboard_process = mp.Process(target = poller, args = (output_queue, new_queue))
-	# reader_process = mp.Process(target = reader, args = (output_queue,))
-	# keyboard_process.start()
-	# reader_process.start()
+	keyboard_process = mp.Process(target = poller, args = (output_queue, new_queue))
+	reader_process = mp.Process(target = reader, args = (output_queue,))
+	keyboard_process.start()
+	reader_process.start()
 
 	root = Tk()
 	mainframe = Frame(root)
