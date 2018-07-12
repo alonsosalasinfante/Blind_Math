@@ -59,6 +59,7 @@ def tokenize(text):
 	return tokens
 
 def fix_terms(term):
+	# print(term, "TEEEEEERM")
 	if term.down:
 		fix_terms(term.down)
 	if type(term) in symbols.object_fixes:
@@ -86,6 +87,7 @@ def order(tokens, checked):
 		expressions += [expression]
 	print(expressions, "after parse\r")
 	expressions = terminize(checked, expressions, ())
+	print(expressions, "after expressions")
 	fix_terms(expressions)
 	return expressions
 
@@ -138,23 +140,23 @@ def terminize(checked, expressions, loc, arg = False):
 
 		targets = [None, None, None, None]
 
-		# if len(loc) == 0:
-		# 	targets[1] = terminize(checked, expressions, loc + (0,))
-		# 	res = symbols.equation_list(targets, len(expression))
-		if type(expression[loc[-1]]) == list:
+		if len(loc) == 0:
+			targets[1] = terminize(checked, expressions, loc + (0,))
+			res = symbols.equation_list(targets, len(expression))
+		elif type(expression[loc[-1]]) == list:
 			targets[1] = terminize(checked, expressions, loc + (0,))
 			if not arg and len(loc) > 0:
 				targets[3] = terminize(checked, expressions, loc[:len(loc)-1] + (loc[-1]+1,))
-			# if arg and len(expression[loc[-1]]) == 1:
-			# 	res = symbols.term(targets, expression[loc[-1]][0])
-			# elif len(loc) == 1: 
-			# 	if len(expression[loc[-1]]) == 1:
-			# 		targets[1] = targets[1].down.down
-			# 		res = symbols.expression(targets)
-			# 	else:
-			# 		res = symbols.equation(targets)
-			# elif len(loc) == 2:
-			# 	res = symbols.expression(targets, loc[-1]//2 + 1)
+			if arg and len(expression[loc[-1]]) == 1:
+				res = symbols.term(targets, expression[loc[-1]][0])
+			elif len(loc) == 1: 
+				if len(expression[loc[-1]]) == 1:
+					targets[1] = targets[1].down.down
+					res = symbols.expression(targets)
+				else:
+					res = symbols.equation(targets)
+			elif len(loc) == 2:
+				res = symbols.expression(targets, loc[-1]//2 + 1)
 			res = symbols.parenthetical(targets)
 		elif expression[loc[-1]] in symbols.tex_args:
 			func, arg = symbols.tex_args[expression[loc[-1]]]
@@ -175,6 +177,7 @@ def terminize(checked, expressions, loc, arg = False):
 		if res.right:
 			res.right.left = res
 
+		print(loc, type(res))
 		return res
 
 	except IndexError:
@@ -290,8 +293,8 @@ def graph(text):
 	loc = []
 	statement = []
 	parsed = tokenize(new_expression)
-	print(parsed)
-	expression = order(new_expression, set())
+	print(parsed, "after tokenize")
+	expression = order(parsed, set())
 	print(expression)
 	new_queue.put(expression)
 
