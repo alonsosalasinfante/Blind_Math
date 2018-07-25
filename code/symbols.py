@@ -19,6 +19,7 @@ class term():
 					'*': ["times "],
 					'/': ["divided by "],
 					'=': ["equals "],
+					'_': ["sub"],
 					'pm': ["plus or minus "],
 					'mp': ["minus or plus"],
 					'ne': ["not equal to "],
@@ -122,20 +123,32 @@ class subscript(term):
 		super().__init__(targets)
 
 	def spoken(self):
-		return super().spoken() + ["sub "] + self.down.spoken()
+		if self.base_term:
+			return self.down.spoken() + ["sub "] + self.down.right.right.spoken()
+		else:
+			return ["a term sub "] + self.down.right.right.spoken()
 
 	def fix(self):
-		self.value = self.left.value
 		if self.left.left:
 			self.left.left.right = self
 		else:
-			self.left.up.down = self
+			self.left.up.down = self		
+			
+		self.down = self.left
 		self.left = self.left.left
+		self.down.up = self
+		self.down.left = None
+		self.down.right = term([self, None, self.down, self.right], '_')
+
 		if self.right.right:
 			self.right.right.left = self
-		self.down = self.right
 		self.right = self.right.right
-		self.down.base_term = True
+		self.down.right.right.left = self.down.right
+		self.down.right.right.up = self
+		self.down.right.right.right = None
+
+		if not self.down.base_term:
+			self.base_term = False 
 
 class power(term):
 	def __init__(self, targets, args):
@@ -156,6 +169,7 @@ class power(term):
 			self.left.left.right = self
 		else:
 			self.left.up.down = self		
+			
 		self.down = self.left
 		self.left = self.left.left
 		self.down.up = self
