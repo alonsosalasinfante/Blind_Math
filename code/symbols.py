@@ -6,6 +6,12 @@ tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\
 tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
 all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
 
+def add_times(term):
+	if term.right and (not term.value or term.value not in operations) and (not term.right.value or term.right.value not in operations):
+		return True
+	else:
+		return False
+
 class term():
 	def __init__(self, targets, value = None):
 		self.up, self.down, self.left, self.right = targets 
@@ -19,9 +25,9 @@ class term():
 					'*': ["times "],
 					'/': ["divided by "],
 					'=': ["equals "],
-					'_': ["sub"],
+					'_': ["sub "],
 					'pm': ["plus or minus "],
-					'mp': ["minus or plus"],
+					'mp': ["minus or plus "],
 					'ne': ["not equal to "],
 					'approx': ["is approximately equal to "],
 					'cong': ["is congruent to "],
@@ -29,8 +35,38 @@ class term():
 					'>': ["is greater than "],
 					'<': ["is less than "],
 					'leq': ["is less than or equal to "],
-					'geq': ["is greater than or equal to"]
+					'geq': ["is greater than or equal to "],
+					'A': ["ey "],
+					'a': ["ey "]
 				}.get(self.value, [self.value + ' '])
+
+	def read_expression(self, r = True):
+		if self.value == '^' and r: # Catching exponentials
+			return {"2": ["squared "],
+					"3": ["cubed "]
+					}.get(self.right.value, ["raised to the power of "] + self.right.read_expression())
+		elif self.value == "/" and r and self.left.value == "1":
+			return {"2": ["half "],
+					"3": ["third "],
+					"4": ["fourth "],
+					"5": ["fifth "],
+					"6": ["sixth "],
+					"7": ["seventh "],
+					"8": ["eighth "],
+					"9": ["ninth "],
+					"10": ["tenth "]
+					}.get(self.right.value, ["divided by "] + self.right.read_expression())
+		else:
+			statement = self.spoken()
+			if r:
+				self.check_right(statement)
+			return statement
+
+	def check_right(self, statement):
+		if self.right:
+			if self.right.value == "=":
+				statement += [', ']
+			statement += self.right.read_expression()
 
 class parenthetical(term):
 	def __init__(self, targets):
@@ -46,11 +82,39 @@ class parenthetical(term):
 				inner += inner_term.spoken()
 			else:
 				inner += ["a term "]
-			if inner_term.right and (not inner_term.value or inner_term.value not in operations) and (not inner_term.right.value or inner_term.right.value not in operations):
+			if add_times(inner_term):
 				inner += ["times "]
 			inner_term = inner_term.right
 		output += [inner]
 		return output
+
+	def read_expression(self, r = True):
+		statement = ["parenthetical"]
+		if self.add_quantity():
+			inner = ["the quantity, "]
+		else:
+			inner = []	
+		inner += self.down.read_expression()
+		if self.add_quantity():
+			inner += [', ']
+		if self.right and r:
+			if self.right.value == "=":
+				inner += [', ' ]
+			elif add_times(self):
+				inner += [", times "]
+			inner += self.right.read_expression()
+		statement += [inner]
+		return statement
+
+	def add_quantity(self):
+		if type(self) == expression:
+			return False
+		elif type(self.down) in (frac,):
+			return False
+		elif type(self.up) in (subscript, frac):
+			return False
+		else:
+			return True
 
 class expression(parenthetical):
 	def __init__(self, targets, num = None):
@@ -62,6 +126,13 @@ class expression(parenthetical):
 			return ["expression " + str(self.num) + ' '] + super().spoken()
 		else:
 			return ["this is an expression "] + super().spoken()
+
+	def read_expression(self, r = True):
+		if self.num:
+			statement = ["expression " + str(self.num) + ', '] + super().read_expression(r)
+		else:
+			statement = ["this is an expression, "] + self.down.read_expression()
+		return statement
 
 class equation(term):
 	def __init__(self, targets):
@@ -76,6 +147,10 @@ class equation(term):
 			expression = expression.right
 		return output
 
+	def read_expression(self, r = True):
+		statement = ["this is an equation, "] + self.down.read_expression()
+		return statement
+
 class equation_list(term):
 	def __init__(self, targets, num):
 		super().__init__(targets)
@@ -85,6 +160,12 @@ class equation_list(term):
 	def spoken(self):
 		return ["this is a list of " + str(self.num) + " equations "]
 
+	def read_expression(self, r = True):
+		statement = self.spoken()
+		if r:
+			self.check_right(statement)
+		return statement
+
 class frac(term):
 	def __init__(self, targets, args):
 		down = args[0]
@@ -92,18 +173,40 @@ class frac(term):
 		args[1].left = down.right
 		targets[1] = down
 		super().__init__(targets)
-		if not (self.down.base_term and self.down.right.right.base_term):
+		self.num, self.den = self.down, self.down.right.right
+		if not (self.num.base_term and self.den.base_term):
 			self.base_term = False 
 
 	def spoken(self):
 		if self.base_term:
-			return self.down.spoken() + ["over "] + self.down.right.right.spoken()
-		elif self.down.base_term:
-			return ["frac1"] + self.down.spoken() + ["divided by a term "]
-		elif self.down.right.right.base_term: 
-			return ["frac2"] + ["a term divided by "] + self.down.right.right.spoken()
+			if self.num.value == "1":
+				return {"2": ["one half "],
+						"3": ["one third "],
+						"4": ["one fourth "],
+						"5": ["one fifth "],
+						"6": ["one sixth "],
+						"7": ["one seventh "],
+						"8": ["one eighth "],
+						"9": ["one ninth "],
+						"10": ["one tenth "]
+						}.get(self.den.value, self.num.spoken() + ["over "] + self.den.spoken())
+			else:
+				return self.num.spoken() + ["over "] + self.den.spoken()
+		elif self.num.base_term:
+			return ["frac1"] + self.num.spoken() + ["divided by a term "]
+		elif self.den.base_term: 
+			return ["frac2"] + ["a term divided by "] + self.den.spoken()
 		else:
 			return ["a term divided by another term "]
+
+	def read_expression(self, r = True):
+		if self.base_term:
+			statement = self.num.read_expression()
+		else:
+			statement = ["the numerator "] + self.num.read_expression(False) + ["over the denominator "] + self.den.read_expression(False)
+		if r:
+			self.check_right(statement)
+		return statement
 
 class sqrt(term):
 	def __init__(self, targets, args):
@@ -117,6 +220,12 @@ class sqrt(term):
 			return ["The square root of "] + self.down.spoken()
 		else:
 			return ["The square root of a parenthetical term "]
+
+	def read_expression(self, r = True):
+		statement = ["The square root of "] + self.down.read_expression()
+		if r:
+			self.check_right(statement)
+		return statement
 
 class subscript(term):
 	def __init__(self, targets, args):
@@ -148,7 +257,13 @@ class subscript(term):
 		self.down.right.right.right = None
 
 		if not self.down.base_term:
-			self.base_term = False 
+			self.base_term = False
+
+	def read_expression(self, r = True): 
+		statement = self.down.read_expression()
+		if r:
+			self.check_right(statement)
+		return statement
 
 class power(term):
 	def __init__(self, targets, args):
@@ -156,9 +271,14 @@ class power(term):
 
 	def spoken(self):
 		if self.base_term:
-			return ["base "] + self.down.spoken()  + [" raised to the power of "] + self.down.right.right.spoken()
+			if self.down.right.right.value == "2":
+				return self.down.spoken() + ["squared "]
+			elif self.down.right.right.value == "3":
+				return self.down.spoken() + ["cubed "]
+			else:
+				return ["base "] + self.down.spoken()  + ["raised to the power of "] + self.down.right.right.spoken()
 		elif self.down.base_term: 
-			return ["base"] + self.down.spoken() + [" raised to the power of a term "]
+			return ["base"] + self.down.spoken() + ["raised to the power of a term "]
 		elif self.down.right.right.base_term:
 			return ["A base term raised to the power of "] + self.down.right.right.spoken()
 		else:
@@ -184,7 +304,13 @@ class power(term):
 		self.down.right.right.right = None
 
 		if not (self.down.base_term and self.down.right.right.base_term):
-			self.base_term = False 
+			self.base_term = False
+
+	def read_expression(self, r = True):
+		statement = self.down.read_expression() 
+		if r:
+			self.check_right(statement)
+		return statement
 
 class trig(term):
 	def __init__(self, targets, args, op):
@@ -199,6 +325,12 @@ class trig(term):
 			return [self.operation, " of "] + self.down.spoken()
 		else:
 			return [self.operation, " of a term "]
+
+	def read_expression(self, r = True): 
+		statement = [self.operation, " of "] + self.down.read_expression()
+		if r:
+			self.check_right(statement)
+		return statement
 
 class cos(trig):
 	def __init__(self, targets, args):
@@ -242,9 +374,3 @@ class csc(trig):
 
 tex_args = {'frac': (frac, 2), 'sqrt': (sqrt, 1), 'pow': (power, 0), 'sub': (subscript, 0), 'cos': (cos, 1), 'sin': (sin, 1), 'tan': (tan, 1), 'cot': (cot, 1), 'arccos': (arccos, 1), 'arcsin': (arcsin, 1), 'arctan': (arctan, 1), 'arccot': (arccot, 1), 'sec': (sec, 1), 'csc': (csc, 1)}
 object_fixes = {subscript, power}
-
-
-
-
-
-

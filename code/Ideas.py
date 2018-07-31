@@ -13,10 +13,6 @@
 # mixer.init()
 # thing_p = multiprocessing.Process(target = thing)
 # thing_p.start()
-import pyttsx3
-print("11111")
-engine = pyttsx3.init()
-print("22222")
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -25,49 +21,49 @@ from matplotlib.backends.backend_tkagg import FigureCanvas
 from tkinter import *
 from tkinter.ttk import *
 import multiprocessing
+import pyttsx3
 
 def graph(text):
 	tmptext = entry.get()
-	tmptext, new_expression = "$"+tmptext+"$", "$"+tmptext+"$"
+	tmptext, new_expression = "$"+tmptext+"$", tmptext
 
 	ax.clear()
-	ax.text(0.2, 0.6, tmptext, fontsize = 50)  
+	ax.text(0.2, 0.6, tmptext, fontsize = 50) 
 	canvas.draw()
+	engine.say(tmptext)
+	engine.runAndWait() 
 
-def thing():
-	print("##############################")
-	engine.say("test test test test")
-	engine.runAndWait()
-	print("FUUUUUUUUUUUUUUUUCCKKKKKK")
+def callback():
+    print("click!")
 
+engine = pyttsx3.init()
+ 
+root = Tk()
 
-process_thing = multiprocessing.Process(target = thing)
-process_thing.start()
+mainframe = Frame(root)
+mainframe.pack()
 
-# root = Tk()
+text = StringVar()
+entry = Entry(mainframe, width=70, textvariable=text)
+entry.pack()
 
-# mainframe = Frame(root)
-# mainframe.pack()
+label = Label(mainframe)
+label.pack()
 
-# text = StringVar()
-# entry = Entry(mainframe, width=70, textvariable=text)
-# entry.pack()
+fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+ax = fig.add_subplot(111)
 
-# label = Label(mainframe)
-# label.pack()
+canvas = FigureCanvas(fig, master=label)
+canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+canvas._tkcanvas.pack(side=TOP, fill=BOTH, expand=1)
 
-# fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-# ax = fig.add_subplot(111)
+ax.get_xaxis().set_visible(False)
+ax.get_yaxis().set_visible(False)
 
-# canvas = FigureCanvas(fig, master=label)
-# canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
-# canvas._tkcanvas.pack(side=TOP, fill=BOTH, expand=1)
-
-# ax.get_xaxis().set_visible(False)
-# ax.get_yaxis().set_visible(False)
-
-# root.bind('<Return>', graph)
-# root.mainloop()
+root.bind('<Return>', graph)
+b = Button(root, text="OK", command=callback)
+b.pack()
+root.mainloop()
 
 
 
