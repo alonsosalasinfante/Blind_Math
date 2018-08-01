@@ -3,6 +3,7 @@ import curses
 import os
 import multiprocessing as mp
 import pyttsx3
+import subprocess
 
 def tokenize(text):
 	'''
@@ -190,29 +191,37 @@ def poller(output_queue, expression):
 	stdscr = curses.initscr()
 	stdscr.keypad(True)
 	stdscr.timeout(-1)
+	top_expression = None
+	statement = []
 
 	while True:
 		char = stdscr.getch()
 		if expression is not None:
-			if char == curses.KEY_LEFT:
-				if expression.left:
-					expression = expression.left
-			elif char == curses.KEY_RIGHT:
-				if expression.right:
-					expression = expression.right
-			elif char == curses.KEY_UP:
-				if expression.up:
-					expression = expression.up
-			elif char == curses.KEY_DOWN:
-				if expression.down:
-					expression = expression.down
-			elif char == 10:
+			if char == 10:
 				statement = expression.read_expression(False)
-				output_queue.put(statement)
-
-			if char != 10:
+			elif char == 49:
+				if top_expression:
+					statement = top_expression.read_expression(False)
+			else:
+				if char == curses.KEY_LEFT:
+					if expression.left:
+						expression = expression.left
+				elif char == curses.KEY_RIGHT:
+					if expression.right:
+						expression = expression.right
+				elif char == curses.KEY_UP:
+					if expression.up:
+						expression = expression.up
+				elif char == curses.KEY_DOWN:
+					if expression.down:
+						expression = expression.down
+				if type(expression) == symbols.equation or (type(expression) == symbols.expression and not expression.num):
+					top_expression = expression
+				elif type(expression) == symbols.equation_list:
+					top_expression = None
 				statement = expression.spoken()
-				output_queue.put(statement)
+
+			output_queue.put(statement)
 			print(statement, '\n\r')
 
 def speaker(statement): 
@@ -285,6 +294,8 @@ def process_statement(statement, v, engine, voices):
 			engine.say(output)
 
 if __name__ == '__main__':
+	os.system("latex test_latex.tex")
+	os.system("open test_latex.dvi")
 	File = open('test_latex.tex', 'r').read()
 	loc = []
 	statement = []

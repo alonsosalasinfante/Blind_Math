@@ -7,7 +7,7 @@ tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div'
 all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
 
 def add_times(term):
-	if term.right and (not term.value or term.value not in operations) and (not term.right.value or term.right.value not in operations):
+	if term.right and (not term.value or term.value not in operations) and (not term.right.value or term.right.value not in operations) and not (term.value == "_" or term.right.value == "_"):
 		return True
 	else:
 		return False
@@ -66,6 +66,8 @@ class term():
 		if self.right:
 			if self.right.value == "=":
 				statement += [', ']
+			elif add_times(self):
+				statement += ["times "]
 			statement += self.right.read_expression()
 
 class parenthetical(term):
@@ -97,12 +99,8 @@ class parenthetical(term):
 		inner += self.down.read_expression()
 		if self.add_quantity():
 			inner += [', ']
-		if self.right and r:
-			if self.right.value == "=":
-				inner += [', ' ]
-			elif add_times(self):
-				inner += [", times "]
-			inner += self.right.read_expression()
+		if r:
+			self.check_right(inner)
 		statement += [inner]
 		return statement
 
@@ -193,9 +191,9 @@ class frac(term):
 			else:
 				return self.num.spoken() + ["over "] + self.den.spoken()
 		elif self.num.base_term:
-			return ["frac1"] + self.num.spoken() + ["divided by a term "]
+			return self.num.spoken() + ["divided by a term "]
 		elif self.den.base_term: 
-			return ["frac2"] + ["a term divided by "] + self.den.spoken()
+			return ["a term divided by "] + self.den.spoken()
 		else:
 			return ["a term divided by another term "]
 
@@ -203,7 +201,7 @@ class frac(term):
 		if self.base_term:
 			statement = self.num.read_expression()
 		else:
-			statement = ["the numerator "] + self.num.read_expression(False) + ["over the denominator "] + self.den.read_expression(False)
+			statement = ["the numerator, "] + self.num.read_expression(False) + ["over the denominator, "] + self.den.read_expression(False)
 		if r:
 			self.check_right(statement)
 		return statement
@@ -278,7 +276,7 @@ class power(term):
 			else:
 				return ["base "] + self.down.spoken()  + ["raised to the power of "] + self.down.right.right.spoken()
 		elif self.down.base_term: 
-			return ["base"] + self.down.spoken() + ["raised to the power of a term "]
+			return ["base "] + self.down.spoken() + ["raised to the power of a term "]
 		elif self.down.right.right.base_term:
 			return ["A base term raised to the power of "] + self.down.right.right.spoken()
 		else:
@@ -306,7 +304,7 @@ class power(term):
 		if not (self.down.base_term and self.down.right.right.base_term):
 			self.base_term = False
 
-	def read_expression(self, r = True):
+	def read_expression(self, r = True): ######### FIX THISSSS
 		statement = self.down.read_expression() 
 		if r:
 			self.check_right(statement)
