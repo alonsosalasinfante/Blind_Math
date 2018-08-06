@@ -1,6 +1,5 @@
 greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Capital Delta', '\\Gamma': 'Capital Gamma', '\\Lambda': 'Capital Lambda', '\\Omega': 'Capital Omega', '\\Phi': 'Capital Phi', '\\Pi': 'Capital Pi', '\\Psi': 'Capital Psi', '\\Sigma': 'Capital Sigma', '\\Theta': 'Capital Theta', '\\Upsilon': 'Capital Upsilon', '\\Xi': 'Capital Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
 numbers = '0123456789'
-operations = '+-/*=^'
 tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\\sin': 'sin', '\\cos': 'cos', '\\tan': 'tan', '\\cot': 'cot', '\\arcsin': 'arcsin', '\\arccos': 'arccos', '\\artan': 'arctan', '\\arccot': 'arccot', '\\sec': 'sec', '\\csc': 'csc'}
 tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
 all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
@@ -40,7 +39,7 @@ class term():
 					'-': ["minus "],
 					'*': ["times "],
 					'/': ["divided by "],
-					'=': ["equals "],
+					'=': [", equals "],
 					'_': ["sub "],
 					'pm': ["plus or minus "],
 					'mp': ["minus or plus "],
@@ -101,14 +100,11 @@ class term():
 		'''
 		Helper function which takes the passed in term object, 
 		and appends the passed in statement whether appropriately.
-		It will:	Add a comma if needed due to an "="
-					Add a "times " if needed
+		It will:	Add a "times " if needed
 					Add the read_expression list of the right term
 		'''
 		if self.right:
-			if self.right.value == "=":
-				statement += [', ']
-			elif self.add_times():
+			if self.add_times():
 				statement += ["times "]
 			statement += self.right.read_expression()
 
@@ -149,10 +145,9 @@ class parenthetical(term):
 
 	def read_expression(self, r = True):
 		statement = ["parenthetical"]
+		inner = []
 		if self.add_quantity():
-			inner = ["the quantity, "]
-		else:
-			inner = []	
+			inner = ["the quantity, "]	
 		inner += self.down.read_expression()
 		if self.add_quantity():
 			inner += [', ']
@@ -186,9 +181,9 @@ class expression(parenthetical):
 
 	def spoken(self):
 		if self.num:
-			return ["expression " + str(self.num) + ' '] + super().spoken()
+			return ["expression " + str(self.num) + ', '] + super().spoken()
 		else:
-			return ["this is an expression "] + super().spoken()
+			return ["this is an expression, "] + super().spoken()
 
 	def read_expression(self, r = True):
 		if self.num:
@@ -203,7 +198,7 @@ class equation(term):
 		self.base_term = False
 
 	def spoken(self):
-		output = ["this is an equation "]
+		output = ["this is an equation, "]
 		expression = self.down
 		while expression != None:
 			output += expression.spoken()
@@ -256,9 +251,9 @@ class frac(term):
 			else:
 				return self.num.spoken() + ["over "] + self.den.spoken()
 		elif self.num.base_term:
-			return self.num.spoken() + ["divided by a term "]
+			return self.num.spoken() + [", divided by a term "]
 		elif self.den.base_term: 
-			return ["a term divided by "] + self.den.spoken()
+			return ["a term divided by, "] + self.den.spoken()
 		else:
 			return ["a term divided by another term "]
 
@@ -280,7 +275,7 @@ class sqrt(term):
 
 	def spoken(self):
 		if self.base_term:
-			return ["The square root of "] + self.down.spoken()
+			return ["The square root of, "] + self.down.spoken()
 		else:
 			return ["The square root of a parenthetical term "]
 
@@ -294,12 +289,6 @@ class subscript(term):
 	def __init__(self, targets, args):
 		super().__init__(targets)
 
-	def spoken(self):
-		if self.base_term:
-			return self.down.spoken() + ["sub "] + self.down.right.right.spoken()
-		else:
-			return ["a term sub "] + self.down.right.right.spoken()
-
 	def fix(self):
 		'''
 		Helper method which only some term orbjects (currently only
@@ -311,7 +300,7 @@ class subscript(term):
 		over the immediate appropriate # of left/right objects, includes
 		them as a pseudo-parenthetical linked objects under the down pointer 
 
-			Input: self is the callinf term-object
+			Input: self is the calling term-object
 		'''
 		if self.left.left:
 			self.left.left.right = self
@@ -334,6 +323,12 @@ class subscript(term):
 		if not self.down.base_term:
 			self.base_term = False
 
+	def spoken(self):
+		if self.base_term:
+			return self.down.spoken() + ["sub "] + self.down.right.right.spoken()
+		else:
+			return ["a term sub "] + self.down.right.right.spoken()
+
 	def read_expression(self, r = True): 
 		statement = self.down.read_expression()
 		if r:
@@ -343,21 +338,6 @@ class subscript(term):
 class power(term):
 	def __init__(self, targets, args):
 		super().__init__(targets)
-
-	def spoken(self):
-		if self.base_term:
-			if self.down.right.right.value == "2":
-				return self.down.spoken() + ["squared "]
-			elif self.down.right.right.value == "3":
-				return self.down.spoken() + ["cubed "]
-			else:
-				return ["base "] + self.down.spoken()  + ["raised to the power of "] + self.down.right.right.spoken()
-		elif self.down.base_term: 
-			return ["base "] + self.down.spoken() + ["raised to the power of a term "]
-		elif self.down.right.right.base_term:
-			return ["A base term raised to the power of "] + self.down.right.right.spoken()
-		else:
-			return ["A base term raised to the power of another term "]
 
 	def fix(self):
 		if self.left.left:
@@ -380,6 +360,21 @@ class power(term):
 
 		if not (self.down.base_term and self.down.right.right.base_term):
 			self.base_term = False
+
+	def spoken(self):
+		if self.base_term:
+			if self.down.right.right.value == "2":
+				return self.down.spoken() + ["squared "]
+			elif self.down.right.right.value == "3":
+				return self.down.spoken() + ["cubed "]
+			else:
+				return self.down.spoken()  + ["raised to the power of, "] + self.down.right.right.spoken()
+		elif self.down.base_term: 
+			return self.down.spoken() + ["raised to the power of a term "]
+		elif self.down.right.right.base_term:
+			return ["A base term raised to the power of, "] + self.down.right.right.spoken()
+		else:
+			return ["A base term raised to the power of another term "]
 
 	def read_expression(self, r = True):
 		statement = self.down.read_expression() 

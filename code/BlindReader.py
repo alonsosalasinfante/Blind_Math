@@ -278,9 +278,9 @@ def get_statement(statement):
 if __name__ == '__main__':
 
 	# Process the desired LaTeX document, and open it
-	os.system("latex test.tex")
-	os.system("open test.dvi")
-	text = open('test.tex', 'r').read()
+	os.system("test_latex.tex")
+	os.system("open test_latex.pdf")
+	text = open('test_latex.tex', 'r').read()
 
 	# Used for parsing/processing the LaTeX file
 	loc = []
