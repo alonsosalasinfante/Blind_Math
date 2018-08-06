@@ -1,24 +1,40 @@
-letters = 'qwertyuiopasdfghjklzxcvbnm'
 greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Capital Delta', '\\Gamma': 'Capital Gamma', '\\Lambda': 'Capital Lambda', '\\Omega': 'Capital Omega', '\\Phi': 'Capital Phi', '\\Pi': 'Capital Pi', '\\Psi': 'Capital Psi', '\\Sigma': 'Capital Sigma', '\\Theta': 'Capital Theta', '\\Upsilon': 'Capital Upsilon', '\\Xi': 'Capital Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
 numbers = '0123456789'
 operations = '+-/*=^'
 tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\\sin': 'sin', '\\cos': 'cos', '\\tan': 'tan', '\\cot': 'cot', '\\arcsin': 'arcsin', '\\arccos': 'arccos', '\\artan': 'arctan', '\\arccot': 'arccot', '\\sec': 'sec', '\\csc': 'csc'}
 tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
 all_tex_keys = {**tex_operations, **tex_base_term_opertations, **greek_hebrew_letters}
-
-def add_times(term):
-	if term.right and (not term.value or term.value not in operations) and (not term.right.value or term.right.value not in operations) and not (term.value == "_" or term.right.value == "_"):
-		return True
-	else:
-		return False
+all_operations = {'^', '+', '-', '*', '/', '=', '_', 'pm', 'mp', 'ne', 'approx', 'cong', 'equiv', '>', '<', 'leq', 'geq'}
 
 class term():
+	'''
+	The most base level linked term object form which all other terms are derived from
+	all linked term objects have the following attributes:
+
+		up, down, left, right: all of these attributes link to other term objects or None
+		base_term: 	True or False depending on if the term object is a simple term, meaning 
+					it is to be read out whole, or if it is a complex term, in which case
+					term.spoken() will return "a term" or a similar abstraction
+					All term type objects are by default base terms
+		value: 	A string which is the term's actual value. Defaults to None for all other non 
+				term type objects which derive from the term class
+	'''
 	def __init__(self, targets, value = None):
 		self.up, self.down, self.left, self.right = targets 
 		self.base_term = True
 		self.value = value
 
 	def spoken(self):
+		'''
+		The spoken method returns the statement to be read out
+		when the user clicks one of the arrow keys and ends up
+		on a new term object. The spoken methods should use 
+		abstraction when describing a complex term
+
+			Inputs: self is the term object
+			Returns: 	a (usually nested) list of words to convert
+						to spoken speech
+		'''
 		return {	'^': ["raised to the power of "],
 					'+': ["plus "],
 					'-': ["minus "],
@@ -37,11 +53,30 @@ class term():
 					'leq': ["is less than or equal to "],
 					'geq': ["is greater than or equal to "],
 					'A': ["ey "],
-					'a': ["ey "]
+					'a': ["ey "],
+					'y': ["why "],
+					'Y': ["why "]
 				}.get(self.value, [self.value + ' '])
 
 	def read_expression(self, r = True):
-		if self.value == '^' and r: # Catching exponentials
+		'''
+		Function which returns a list of everything that is to be
+		read under the hierarchical level of the calling term
+		object. If r is True, everything to the right of the 
+		calling term object, e.g. everything on the same heirarchial
+		level but to the right of the selected term, is also 
+		read. When using Blindreader.py, r is False for the 
+		selected term, then all of the read_expression recursive
+		calls that happen as a result of the first one defaults to
+		r being True.
+
+			Inputs: self is the calling term object
+					r is whether or not to call read_expression for 
+						term.right. True will do so, False will only 
+						read out everything below the chosen term
+			Returns: A nested list of everything to be read out
+		'''
+		if self.value == '^' and r:
 			return {"2": ["squared "],
 					"3": ["cubed "]
 					}.get(self.right.value, ["raised to the power of "] + self.right.read_expression())
@@ -63,12 +98,34 @@ class term():
 			return statement
 
 	def check_right(self, statement):
+		'''
+		Helper function which takes the passed in term object, 
+		and appends the passed in statement whether appropriately.
+		It will:	Add a comma if needed due to an "="
+					Add a "times " if needed
+					Add the read_expression list of the right term
+		'''
 		if self.right:
 			if self.right.value == "=":
 				statement += [', ']
-			elif add_times(self):
+			elif self.add_times():
 				statement += ["times "]
 			statement += self.right.read_expression()
+
+	def add_times(self):
+		'''
+		Helper function which determines if the passed in term should have
+		"times" after it and before the readout of the next term (e.g. if 
+		you have "5(x+5)", it should read "5 TIMES quantity x + 5"). Used 
+		in check_right 
+
+			Inputs: A linked term object
+			Returns: True or False
+		'''
+		if self.right and (type(self) != term or (self.value not in all_operations)) and (type(self.right) != term or (self.right.value not in all_operations)):
+			return True
+		else:
+			return False
 
 class parenthetical(term):
 	def __init__(self, targets):
@@ -84,7 +141,7 @@ class parenthetical(term):
 				inner += inner_term.spoken()
 			else:
 				inner += ["a term "]
-			if add_times(inner_term):
+			if inner_term.add_times():
 				inner += ["times "]
 			inner_term = inner_term.right
 		output += [inner]
@@ -105,6 +162,14 @@ class parenthetical(term):
 		return statement
 
 	def add_quantity(self):
+		'''
+		Helper function which determines if the calling parenthetical
+		term should have "the quantity " added before the rest of the
+		read out. 
+
+			Inputs: self is the calling parenthetical term object
+			Returns: True or False if "the quantity " should be added
+		'''
 		if type(self) == expression:
 			return False
 		elif type(self.down) in (frac,):
@@ -236,6 +301,18 @@ class subscript(term):
 			return ["a term sub "] + self.down.right.right.spoken()
 
 	def fix(self):
+		'''
+		Helper method which only some term orbjects (currently only
+		subscript and power) have due to them having to include the
+		term behind them as well as the one in the front (e.g. x_n should
+		have x as well as n in its arguments, but the only way to do this
+		is after parsing/terminization). This method takes the subscript
+		term object, changes the left and right objects pointers to skip
+		over the immediate appropriate # of left/right objects, includes
+		them as a pseudo-parenthetical linked objects under the down pointer 
+
+			Input: self is the callinf term-object
+		'''
 		if self.left.left:
 			self.left.left.right = self
 		else:
@@ -304,7 +381,7 @@ class power(term):
 		if not (self.down.base_term and self.down.right.right.base_term):
 			self.base_term = False
 
-	def read_expression(self, r = True): ######### FIX THISSSS
+	def read_expression(self, r = True):
 		statement = self.down.read_expression() 
 		if r:
 			self.check_right(statement)

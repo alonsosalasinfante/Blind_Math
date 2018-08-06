@@ -3,7 +3,6 @@ import curses
 import os
 import multiprocessing as mp
 import pyttsx3
-import subprocess
 
 def tokenize(text):
 	'''
@@ -106,7 +105,9 @@ def terminize(checked, expressions, loc, arg = False):
 	Terminizer function which navigates the entire expression list and initialize
 	linked term objects according to their type
 
-		Inputs: expressions is the entire mathematical expression list after 
+		Inputs: checked is the set of all locations which have already been
+					previously ran through this function
+				expressions is the entire mathematical expression list after 
 					being passed through tokenize and parse functions
 				loc is the current location within the expression list, this
 					is the token to be evaluated/initialized
@@ -172,10 +173,23 @@ def terminize(checked, expressions, loc, arg = False):
 		return None
 
 def fix_terms(term):
+	'''
+	Helper function which naviates the passed in term object and
+	fixes their targets by calling their respective fix methods.
+	This is necessary after parsing the LaTeX input because some 
+	LaTeX objects, like '^' have an attribute that comes before 
+	'^', whereas others, like '\frac{}{}', don't need fixing
+	because the object's attributes are all in front, so they are
+	accounted for in the terminize function
+
+		Inputs: term is the linked term object to be navigated
+	'''
 	if term.down:
 		fix_terms(term.down)
-	if type(term) in symbols.object_fixes:
+	try:
 		term.fix()
+	except AttributeError:
+		pass
 	if term.right:
 		fix_terms(term.right)
 
@@ -192,16 +206,16 @@ def poller(output_queue, expression):
 	stdscr.keypad(True)
 	stdscr.timeout(-1)
 	top_expression = None
-	statement = []
+	statement = ''
 
 	while True:
 		char = stdscr.getch()
 		if expression is not None:
 			if char == 10:
-				statement = expression.read_expression(False)
+				statement = get_statement(expression.read_expression(False))
 			elif char == 49:
 				if top_expression:
-					statement = top_expression.read_expression(False)
+					statement = get_statement(top_expression.read_expression(False))
 			else:
 				if char == curses.KEY_LEFT:
 					if expression.left:
@@ -219,10 +233,10 @@ def poller(output_queue, expression):
 					top_expression = expression
 				elif type(expression) == symbols.equation_list:
 					top_expression = None
-				statement = expression.spoken()
+				statement = get_statement(expression.spoken())
 
 			output_queue.put(statement)
-			print(statement, '\n\r')
+			print(statement, '\r')
 
 def speaker(statement): 
 	'''
@@ -234,10 +248,22 @@ def speaker(statement):
 				v is the current voice to read out the statement
 	'''
 	engine = pyttsx3.init()
-	engine.say(get_statement(statement))
+	engine.say(statement)
 	engine.runAndWait()
 
 def get_statement(statement):
+	'''
+	I made this helper function because I fucked this up when 
+	coding for the pyttsx3 engine to change voices. This 
+	function takes in the passed in statement nested list 
+	and returns the string representation of the statement. 
+	Please change this if you can. You'll have to go into 
+	symbols.py and change all the list outputs for 
+	spoken/read_expression to string outputs.
+
+		Inputs: statement list object
+		Returns: string version of the statement
+	'''
 	res = ''
 	s = 0
 	while s < len(statement):
@@ -249,69 +275,36 @@ def get_statement(statement):
 			s += 1
 	return res
 
-def process_statement(statement, v, engine, voices):
-	'''
-	Function which process the statements put on the global statement 
-	queue. Adjusts the tts engine's voice according to parenthetical 
-	terms. 
-
-		Inputs:	engine is the tts engine (pyttsx3 module)
-				statement is the statement to be read aloud
-				voices is the list of voices available from the engine
-				v is the current index that selects the engine's voice
-	'''
-	voices_i = [0, 7, 36]
-	current_v = v
-	if v == len(voices_i) - 1:
-		next_v = 0
-	else:
-		next_v = v + 1
-	s = 0
-	while s < len(statement):
-		if statement[s] == "parenthetical":
-			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			process_statement(statement[s+1], next_v, engine, voices)
-			engine.setProperty('voice', voices[voices_i[current_v]].id)
-			v = current_v
-			s += 2
-		elif statement[s] == "frac1":
-			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			process_statement(statement[s+1], next_v, engine, voices)
-			engine.setProperty('voice', voices[voices_i[current_v]].id)
-			engine.say(statement[s+2])
-			s += 3
-		elif statement[s] == "frac2":
-			engine.say(statement[s+1])
-			engine.setProperty('voice', voices[voices_i[next_v]].id)
-			process_statement(statement[s+2], next_v, engine, voices)
-			engine.setProperty('voice', voices[voices_i[current_v]].id)
-			s += 3
-		else:
-			output = ''
-			while s != len(statement) and statement[s] != "parenthetical":
-				output += statement[s]
-				s += 1
-			engine.say(output)
-
 if __name__ == '__main__':
-	os.system("latex test_latex.tex")
-	os.system("open test_latex.dvi")
-	File = open('test_latex.tex', 'r').read()
+
+	# Process the desired LaTeX document, and open it
+	os.system("latex test.tex")
+	os.system("open test.dvi")
+	text = open('test.tex', 'r').read()
+
+	# Used for parsing/processing the LaTeX file
 	loc = []
 	statement = []
 	checked = set()
-	voices_i = [0, 7, 36]
-	parsed = tokenize(File)
+
+	# Process the LaTeX file
+	parsed = tokenize(text)
 	print(parsed, "after tokenize", '\r')
 	ordered = order(parsed, checked)
 	expression = ordered
+
+	# queue is the output queue which the keyboard polling 
+	# process puts every new statement to be read out by
+	# the speaker_process
 	queue = mp.Queue()
 	keyboard_process = mp.Process(target = poller, args = (queue, expression))
 	speaker_process = mp.Process(target = speaker, args = (statement,))
 	keyboard_process.start()
 
+	# Forever while loop which continually checks for new 
+	# outputs in the queue, then stops the current speaker
+	# process if it is running, and starts a new one
 	while True:
-		v = 0
 		statement = queue.get()
 		if speaker_process.is_alive():
 			speaker_process.terminate()
