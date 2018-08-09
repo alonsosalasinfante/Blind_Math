@@ -1,17 +1,13 @@
 import symbols
-import curses
-import os
-import multiprocessing as mp
-import pyttsx3
 
-def tokenize(text):
-	'''
+function tokenize(text):
+	// 
 	Tokenizer function which deletes whitespace and separates all important tokens
 	for any mathematical expressions in the LaTeX document
 	
 		Inputs: text is the entire LaTeX document in plaintext
 		Returns: an list of all relevent tokens of each math expression found
-	'''
+	//
 	i = 0 # Index
 	tokens = [] # A list of all expressions
 
@@ -52,7 +48,7 @@ def tokenize(text):
 		i += 1
 	return tokens
 
-def order(tokens, checked):
+ $ order(tokens, checked):
 	'''
 	Function which first parses the math tokens and creates nested 
 	lists for any parenthetical terms/function arguments and rearranges
@@ -77,7 +73,7 @@ def order(tokens, checked):
 	fix_terms(expression)
 	return expression
 
-def parse(token, index):
+ $ parse(token, index):
 	'''
 	Parsing function which rearranges tokens and creates nested lists 
 	of parenthetical terms
@@ -100,7 +96,7 @@ def parse(token, index):
 		else:
 			return token[index], index + 1
 
-def terminize(checked, expressions, loc, arg = False):
+ $ terminize(checked, expressions, loc, arg = False):
 	'''
 	Terminizer function which navigates the entire expression list and initialize
 	linked term objects according to their type
@@ -129,7 +125,7 @@ def terminize(checked, expressions, loc, arg = False):
 
 		targets = [None, None, None, None]
 
-		if len(loc) == 0: # Default is always an equation list
+		if len(loc) == 0: #  $ault is always an equation list
 			targets[1] = terminize(checked, expressions, loc + (0,))
 			res = symbols.equation_list(targets, len(expression))
 		elif type(expression[loc[-1]]) == list:
@@ -172,7 +168,7 @@ def terminize(checked, expressions, loc, arg = False):
 	except IndexError:
 		return None
 
-def fix_terms(term):
+ $ fix_terms(term):
 	'''
 	Helper function which naviates the passed in term object and
 	fixes their targets by calling their respective fix methods.
@@ -193,7 +189,7 @@ def fix_terms(term):
 	if term.right:
 		fix_terms(term.right)
 
-def poller(output_queue, expression):
+ $ poller(output_queue, expression):
 	'''
 	Keyboard polling function, ran on a separate process which 
 	waits for a keyboard input and then processes it accordingly,
@@ -257,7 +253,7 @@ def poller(output_queue, expression):
 				output_queue.put(statement)
 				print(statement, '\r')
 
-def speaker(statement): 
+ $ speaker(statement): 
 	'''
 	Text to speech function which initializes the tts engine then process 
 	the statement to be read. This function is to be terminated when a new
@@ -270,7 +266,7 @@ def speaker(statement):
 	engine.say(statement)
 	engine.runAndWait()
 
-def get_statement(statement):
+ $ get_statement(statement):
 	'''
 	I made this helper function because I fucked this up when 
 	coding for the pyttsx3 engine to change voices. This 
