@@ -467,24 +467,15 @@ class trig extends term {
 }
 
 class cos extends trig {constructor(targets, args) {super(targets, args, 'cosine')}}
-
 class sin extends trig {constructor(targets, args) {super(targets, args, 'sine')}}
-
 class tan extends trig {constructor(targets, args) {super(targets, args, 'tangent')}}
-
 class cot extends trig {constructor(targets, args) {super(targets, args, 'cotangent')}}
-
 class arccos extends trig {constructor(targets, args) {super(targets, args, 'arc cosine')}}
-
 class arcsin extends trig {constructor(targets, args) {super(targets, args, 'arc sine')}}
-
 class arctan extends trig {constructor(targets, args) {super(targets, args, 'arc tangent')}}
-
 class arccot extends trig {constructor(targets, args) {super(targets, args, 'arc cotangent')}}
-
 class sec extends trig {constructor(targets, args) {super(targets, args, 'secant')}}
-
 class csc extends trig {constructor(targets, args) {super(targets, args, 'cosecant')}}
 
-const tex_args = {'frac': (frac, 2), 'sqrt': (sqrt, 1), 'pow': (power, 0), 'sub': (subscript, 0), 'cos': (cos, 1), 'sin': (sin, 1), 'tan': (tan, 1), 'cot': (cot, 1), 'arccos': (arccos, 1), 'arcsin': (arcsin, 1), 'arctan': (arctan, 1), 'arccot': (arccot, 1), 'sec': (sec, 1), 'csc': (csc, 1)}
+const tex_args = {'frac': [frac, 2], 'sqrt': [sqrt, 1], 'pow': [power, 0], 'sub': [subscript, 0], 'cos': [cos, 1], 'sin': [sin, 1], 'tan': [tan, 1], 'cot': [cot, 1], 'arccos': [arccos, 1], 'arcsin': [arcsin, 1], 'arctan': [arctan, 1], 'arccot': [arccot, 1], 'sec': [sec, 1], 'csc': [csc, 1]}
 const object_fixes = Object.assign(subscript, power)
