@@ -1,11 +1,11 @@
-const numbers = '0123456789'
-const greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Capital Delta', '\\Gamma': 'Capital Gamma', '\\Lambda': 'Capital Lambda', '\\Omega': 'Capital Omega', '\\Phi': 'Capital Phi', '\\Pi': 'Capital Pi', '\\Psi': 'Capital Psi', '\\Sigma': 'Capital Sigma', '\\Theta': 'Capital Theta', '\\Upsilon': 'Capital Upsilon', '\\Xi': 'Capital Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
-const tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\\sin': 'sin', '\\cos': 'cos', '\\tan': 'tan', '\\cot': 'cot', '\\arcsin': 'arcsin', '\\arccos': 'arccos', '\\artan': 'arctan', '\\arccot': 'arccot', '\\sec': 'sec', '\\csc': 'csc'}
-const tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
-const all_tex_keys = Object.assign(tex_operations, tex_base_term_opertations, greek_hebrew_letters)
-const all_operations = set(['^', '+', '-', '*', '/', '=', '_', 'pm', 'mp', 'ne', 'approx', 'cong', 'equiv', '>', '<', 'leq', 'geq'])
+export const numbers = '0123456789'
+export const greek_hebrew_letters = {'\\alpha': 'alpha', '\\beta': 'beta', '\\chi': 'chi', '\\delta': 'delta', '\\epsilon': 'epsilon', '\\eta': 'eta', '\\gamma': 'gamma', '\\iota': 'iota', '\\kappa': 'kappa', '\\lambda': 'lambda', '\\mu': 'mu', '\\nu': 'nu', '\\o': 'o', '\\omega': 'omega', '\\phi': 'phi', '\\pi': 'pi', '\\psi': 'psi', '\\rho': 'rho', '\\sigma': 'sigma', '\\tau': 'tau', '\\theta': 'theta', '\\upsilon': 'upsilon', '\\xi': 'xi', '\\zeta': 'zeta', '\\digamma': 'digamma', '\\varepsilon': 'varepsilon', '\\varkappa': 'varkappa', '\\varphi': 'varphi', '\\varrpi': 'varrpi', '\\varrho': 'varrho', '\\vargsigma': 'vargsigma', '\\vartheta': 'vartheta', '\\Delta': 'Capital Delta', '\\Gamma': 'Capital Gamma', '\\Lambda': 'Capital Lambda', '\\Omega': 'Capital Omega', '\\Phi': 'Capital Phi', '\\Pi': 'Capital Pi', '\\Psi': 'Capital Psi', '\\Sigma': 'Capital Sigma', '\\Theta': 'Capital Theta', '\\Upsilon': 'Capital Upsilon', '\\Xi': 'Capital Xi', '\\aleph': 'aleph', '\\beth': 'beth', '\\daleth': 'daleth', '\\gimel': 'gimel'}
+export const tex_operations = {'\\frac': 'frac', '\\sqrt': 'sqrt', '^': 'pow', '_': 'sub', '\\sin': 'sin', '\\cos': 'cos', '\\tan': 'tan', '\\cot': 'cot', '\\arcsin': 'arcsin', '\\arccos': 'arccos', '\\artan': 'arctan', '\\arccot': 'arccot', '\\sec': 'sec', '\\csc': 'csc'}
+export const tex_base_term_opertations = {'\\times': '*', '\\pm': 'pm', '\\mp': 'mp', '\\div': '/', '\\ast': '*', '\\cdot': '*', '\\ne': 'ne', '\\approx': 'approx', '\\cong': 'cong', '\\equiv': 'equiv', '\\leq': 'leq', '\\geq': 'geq'}
+export const all_tex_keys = Object.assign(tex_operations, tex_base_term_opertations, greek_hebrew_letters)
+export const all_operations = new Set(['^', '+', '-', '*', '/', '=', '_', 'pm', 'mp', 'ne', 'approx', 'cong', 'equiv', '>', '<', 'leq', 'geq'])
 
-class term {
+export class term {
 	/*
 	The most base level linked term object form which all other terms are derived from
 	all linked term objects have the following attributes:
@@ -86,7 +86,7 @@ class term {
 		if (this.val == '^' && r) {
 			let res = {"2": "squared ", "3": "cubed "}
 			if (this.right.val in res)
-				return res[this.right.val)]
+				return res[this.right.val]
 			else
 				return "raised to the power of " + this.right.read_expression()
 		}
@@ -108,7 +108,7 @@ class term {
 		else {
 			let statement = this.spoken()
 			if (r)
-				this.check_right(statement)
+				statement += this.check_right(statement)
 			return statement
 		}
 	}
@@ -120,10 +120,13 @@ class term {
 		It will:	Add a "times " if needed
 					Add the read_expression list of the right term
 		*/
-		if (this.right)
+		let res = ''
+		if (this.right) {
 			if (this.add_times())
-				statement += "times "
-			statement += this.right.read_expression()
+				res += "times "
+			res += this.right.read_expression()
+		}
+		return res
 	}
 
 	add_times() {
@@ -143,7 +146,7 @@ class term {
 	}
 }
 
-class parenthetical extends term {
+export class parenthetical extends term {
 	constructor(targets) {
 		super(targets)
 		this.base_term = false
@@ -165,14 +168,14 @@ class parenthetical extends term {
 	}
 
 	read_expression(r = true) {
-		let statement = "parenthetical"
+		let statement = ''
 		if (this.add_quantity())
 			statement = "the quantity, "	
 		statement += this.down.read_expression()
 		if (this.add_quantity())
 			statement += ', '
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 
@@ -196,7 +199,7 @@ class parenthetical extends term {
 	}
 }
 
-class expression extends parenthetical {
+export class expression extends parenthetical {
 	constructor(targets, num = null) {
 		super(targets)
 		this.num = num
@@ -204,21 +207,22 @@ class expression extends parenthetical {
 
 	spoken() {
 		if (this.num)
-			return "expression " + str(this.num) + ', ' + super()
+			return "expression " + this.num + ', ' + super.spoken()
 		else
-			return "this is an expression, " + super()
+			return "this is an expression, " + super.spoken()
 	}
 
 	read_expression(r = true) {
+		let statement
 		if (this.num)
-			statement = "expression " + str(this.num) + ', ' + super(r)
+			statement = "expression " + this.num + ', ' + super.read_expression(r)
 		else
 			statement = "this is an expression, " + this.down.read_expression()
 		return statement
 	}
 }
 
-class equation extends term {
+export class equation extends term {
 	constructor(targets) {
 		super(targets)
 		this.base_term = false
@@ -240,7 +244,7 @@ class equation extends term {
 	}
 }
 
-class equation_list extends term {
+export class equation_list extends term {
 	constructor(targets, num) {
 		super(targets)
 		this.base_term = false
@@ -254,12 +258,12 @@ class equation_list extends term {
 	read_expression(r = true) {
 		let statement = this.spoken()
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class frac extends term {
+export class frac extends term {
 	constructor(targets, args) {
 		let down = args[0]
 		down.right = new term([null, null, down, args[1]], '/')
@@ -301,17 +305,18 @@ class frac extends term {
 	}
 
 	read_expression(r = true) {
-		if (this.base_term)
+		let statement
+		if (this.base_term) 
 			statement = this.num.read_expression()
 		else
 			statement = "the numerator, " + this.num.read_expression(false) + "over the denominator, " + this.den.read_expression(false)
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class sqrt extends term {
+export class sqrt extends term {
 	constructor(targets, args) {
 		targets[1] = args[0]
 		super(targets)
@@ -327,14 +332,14 @@ class sqrt extends term {
 	}
 
 	read_expression(r = true) {
-		statement = "The square root of " + this.down.read_expression()
+		let statement = "The square root of " + this.down.read_expression()
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class subscript extends term {
+export class subscript extends term {
 	constructor(targets, args) {
 		super(targets)
 	}
@@ -361,7 +366,7 @@ class subscript extends term {
 		this.left = this.left.left
 		this.down.up = this
 		this.down.left = null
-		this.down.right = term([this, null, this.down, this.right], '_')
+		this.down.right = new term([this, null, this.down, this.right], '_')
 
 		if (this.right.right)
 			this.right.right.left = this
@@ -382,14 +387,14 @@ class subscript extends term {
 	}
 
 	read_expression(r = true) {
-		statement = this.down.read_expression()
+		let statement = this.down.read_expression()
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class power extends term {
+export class power extends term {
 	constructor(targets, args) {
 		super(targets)
 	}
@@ -404,7 +409,7 @@ class power extends term {
 		this.left = this.left.left
 		this.down.up = this
 		this.down.left = null
-		this.down.right = term([this, null, this.down, this.right], '^')
+		this.down.right = new term([this, null, this.down, this.right], '^')
 
 		if (this.right.right)
 			this.right.right.left = this
@@ -435,14 +440,14 @@ class power extends term {
 	}
 
 	read_expression(r = true) {
-		statement = this.down.read_expression() 
+		let statement = this.down.read_expression()
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class trig extends term {
+export class trig extends term {
 	constructor(targets, args, op) {
 		targets[1] = args[0]
 		super(targets)
@@ -459,23 +464,23 @@ class trig extends term {
 	}
 
 	read_expression(r = true) {
-		statement = this.operation, " of " + this.down.read_expression()
+		let statement = this.operation + " of " + this.down.read_expression()
 		if (r)
-			this.check_right(statement)
+			statement += this.check_right(statement)
 		return statement
 	}
 }
 
-class cos extends trig {constructor(targets, args) {super(targets, args, 'cosine')}}
-class sin extends trig {constructor(targets, args) {super(targets, args, 'sine')}}
-class tan extends trig {constructor(targets, args) {super(targets, args, 'tangent')}}
-class cot extends trig {constructor(targets, args) {super(targets, args, 'cotangent')}}
-class arccos extends trig {constructor(targets, args) {super(targets, args, 'arc cosine')}}
-class arcsin extends trig {constructor(targets, args) {super(targets, args, 'arc sine')}}
-class arctan extends trig {constructor(targets, args) {super(targets, args, 'arc tangent')}}
-class arccot extends trig {constructor(targets, args) {super(targets, args, 'arc cotangent')}}
-class sec extends trig {constructor(targets, args) {super(targets, args, 'secant')}}
-class csc extends trig {constructor(targets, args) {super(targets, args, 'cosecant')}}
+export class cos extends trig {constructor(targets, args) {super(targets, args, 'cosine')}}
+export class sin extends trig {constructor(targets, args) {super(targets, args, 'sine')}}
+export class tan extends trig {constructor(targets, args) {super(targets, args, 'tangent')}}
+export class cot extends trig {constructor(targets, args) {super(targets, args, 'cotangent')}}
+export class arccos extends trig {constructor(targets, args) {super(targets, args, 'arc cosine')}}
+export class arcsin extends trig {constructor(targets, args) {super(targets, args, 'arc sine')}}
+export class arctan extends trig {constructor(targets, args) {super(targets, args, 'arc tangent')}}
+export class arccot extends trig {constructor(targets, args) {super(targets, args, 'arc cotangent')}}
+export class sec extends trig {constructor(targets, args) {super(targets, args, 'secant')}}
+export class csc extends trig {constructor(targets, args) {super(targets, args, 'cosecant')}}
 
-const tex_args = {'frac': [frac, 2], 'sqrt': [sqrt, 1], 'pow': [power, 0], 'sub': [subscript, 0], 'cos': [cos, 1], 'sin': [sin, 1], 'tan': [tan, 1], 'cot': [cot, 1], 'arccos': [arccos, 1], 'arcsin': [arcsin, 1], 'arctan': [arctan, 1], 'arccot': [arccot, 1], 'sec': [sec, 1], 'csc': [csc, 1]}
-const object_fixes = Object.assign(subscript, power)
+export const tex_args = {'frac': [frac, 2], 'sqrt': [sqrt, 1], 'pow': [power, 0], 'sub': [subscript, 0], 'cos': [cos, 1], 'sin': [sin, 1], 'tan': [tan, 1], 'cot': [cot, 1], 'arccos': [arccos, 1], 'arcsin': [arcsin, 1], 'arctan': [arctan, 1], 'arccot': [arccot, 1], 'sec': [sec, 1], 'csc': [csc, 1]}
+export const object_fixes = Object.assign(subscript, power)
