@@ -309,7 +309,7 @@ export class frac extends term {
 		if (this.base_term) 
 			statement = this.num.read_expression()
 		else
-			statement = "the numerator, " + this.num.read_expression(false) + "over the denominator, " + this.den.read_expression(false)
+			statement = "the numerator, " + this.num.read_expression(false) + ", over the denominator, " + this.den.read_expression(false)
 		if (r)
 			statement += this.check_right(statement)
 		return statement
