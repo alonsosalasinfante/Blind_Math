@@ -14,18 +14,18 @@ $('#speak').onclick = function(e) {
 		expression = br.order(tokens)
 		top_expression = expression
 		speakmsg(expression.spoken())
-		document.getElementById("#speak").blur()
 	}
 	catch (err) {
 		let error = "Error parsing LaTeX equation, check syntax"
 		document.getElementById("latexDisplay").innerHTML = error
 		speakmsg(error)
 	}
+	document.getElementById("speak").blur()
 }
 
 $('#rate').onclick = function(e) {
 	rate = $('#speakingRate').value
-	document.getElementById("#rate").blur()
+	document.getElementById("rate").blur()
 }
 
 document.onkeydown = function(event) {
