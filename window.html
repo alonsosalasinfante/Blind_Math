@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link href="window.css" rel="stylesheet">
+	</head>
+	<body>
+		<h1><b>BlindMath LaTeX to Spoken Math</b></h1>
+		<div id="fullscreen-area">
+			<table>
+				<tr>
+					<th>Type your LaTeX Equation Here: <input type="text" id="latexInput" placeholder="LaTeX Input"/></th>
+					<th>Change speaking rate: <input type="number" id="speakingRate" step=.1 value="1" min="0.1" max="10"/></th>
+				</tr>
+				<tr>
+					<td><input type="submit" value="Speak" id="speak"></td>
+					<td><input type="submit" value="Change" id="rate"></td>
+				</tr>
+			</table>
+			<h3>Your equation will display below</h3>
+			<h1 id="latexDisplay"> </h1>
+		</div>
+	</body>
+	<script src="katex.js" integrity="sha256-9uW7yW4EwdUyWU2PHu+Ccek7+xbQpDTDS5OBP0qDrTM=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="katex.css" integrity="" crossorigin="anonymous">
+	<script type="module" src="window.js"></script>
+</html>
